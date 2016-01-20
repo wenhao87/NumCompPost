@@ -23,7 +23,7 @@
 
 %[aside_content]
 
-\section*{详解基于矩阵分裂的迭代格式的收敛性}
+\section*{详解基于矩阵分裂的经典迭代算法及算法实现}
 
 上文详细讨论了基于矩阵分裂的迭代格式的收敛性（见详解基于矩阵分裂的迭代格式的收敛性一文），此外在求解线性方程组的基本迭代法一文中，简单介绍了基本迭代法原理以及几个经典迭代算法。本文作为补充，将详细介绍经典迭代算法的相关特性和算法实现，并且将着重讨论经典迭代法在[label]二维Poisson问题[/label]模型上（见详解一维和二维离散Poisson方程一文）的算法实现。
 
@@ -221,6 +221,49 @@ noindent其中$\boldsymbol{G}_{\mathrm{SOR}}$为SOR迭代算法的迭代矩阵�
 \end{algorithm}
 %[/latex]
 
+\subsection*{SSOR迭代算法}
+
+如果将式（\ref{eq:sor}）SOR迭代算法中的$\boldsymbol{L}$和$\boldsymbol{U}$互换，并与原SOR算法的迭代格式相结合，便能得到如下式（\ref{eq:ssor}）的两步迭代算法，称之为[label]SSOR[/label]（Symmetric SOR，对称超松弛）算法，即：
+
+\begin{equation}
+    \label{eq:ssor}
+    \begin{aligned}
+        & \left\{ \; \begin{aligned}
+            \boldsymbol{x}^{(k+\frac{1}{2})} &= (1-\omega) \boldsymbol{x}^{(k)} + \omega \left( \boldsymbol{D}^{-1} (\boldsymbol{L}\boldsymbol{x}^{(k+\frac{1}{2})} + \boldsymbol{U}\boldsymbol{x}^{(k)}) + \boldsymbol{D}^{-1}\boldsymbol{b} \right) \\
+            \boldsymbol{x}^{(k+1)} &= (1-\omega) \boldsymbol{x}^{(k+\frac{1}{2})} + \omega \left( \boldsymbol{D}^{-1} (\boldsymbol{U}\boldsymbol{x}^{(k+1)} + \boldsymbol{L}\boldsymbol{x}^{(k+\frac{1}{2})}) + \boldsymbol{D}^{-1}\boldsymbol{b}\right) \\
+        \end{aligned} \right. \\
+        \Longrightarrow \; &\left\{ \; \begin{aligned}
+            \boldsymbol{x}^{(k+\frac{1}{2})} &= (\boldsymbol{D}-\omega\boldsymbol{L})^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{U}\Big)\boldsymbol{x}^{(k)} + \omega(\boldsymbol{D}-\omega\boldsymbol{L})^{-1}\boldsymbol{b} \\
+            \boldsymbol{x}^{(k+1)} &= (\boldsymbol{D}-\omega\boldsymbol{U})^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{L}\Big)\boldsymbol{x}^{(k+\frac{1}{2})} + \omega(\boldsymbol{D}-\omega\boldsymbol{U})^{-1}\boldsymbol{b}
+        \end{aligned} \right. \\
+        \overset{elim.\;\boldsymbol{x}^{(k+\frac{1}{2})}}{\Longrightarrow} \; &\left\{ \; \begin{aligned}
+            \boldsymbol{x}^{(k+1)} &= \boldsymbol{G}_{\mathrm{SSOR}}\boldsymbol{x}^{(k)} + \boldsymbol{g} \\
+            \boldsymbol{G}_{\mathrm{SSOR}} &= (\boldsymbol{D}-\omega\boldsymbol{U})^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{L}\Big)(\boldsymbol{D}-\omega\boldsymbol{L})^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{U}\Big) \\
+            \boldsymbol{M} &= \dfrac{1}{\omega(2-\omega)}(\boldsymbol{D}-\omega\boldsymbol{L})\boldsymbol{D}^{-1}(\boldsymbol{D}-\omega\boldsymbol{U}) \\
+            \boldsymbol{N} &= \dfrac{1}{\omega(2-\omega)}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{L}\Big)\boldsymbol{D}^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{U}\Big)
+        \end{aligned} \right. \\
+    \end{aligned}
+\end{equation}
+
+[alert type="info"]一般来说，SOR迭代算法的渐进收敛速度（见详解基于矩阵分裂的迭代格式的收敛性一文）对参数$\omega$较为敏感，但SSOR迭代算法对参数$\omega$则不太敏感。[/alert]
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{SSOR Iterative Method for Linear Systems}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{x}^{(0)}$ and parameter $\omega$ \;
+    \While{not converge}{
+        \For{$i \gets 1$ \KwTo $n$}{
+            $\displaystyle x_i^{(k+\frac{1}{2})} = (1-\omega)x_i^{(k)} + \dfrac{w}{a_{ii}}\left(b_i-\sum_{j=1}^{i-1}a_{ij}x_j^{(k+\frac{1}{2})}-\sum_{j=i+1}^na_{ij}x_j^{(k)}\right)$ \;
+        }
+        \For(\tcp*[f]{in reversed order}){$i \gets n$ \KwTo $1$}{
+            $\displaystyle x_i^{(k+1)} = (1-\omega)x_i^{(k+\frac{1}{2})} + \dfrac{w}{a_{ii}}\left(b_i-\sum_{j=1}^{i-1}a_{ij}x_j^{(k+\frac{1}{2})}-\sum_{j=i+1}^na_{ij}x_j^{(k+1)}\right)$ \;
+        }
+    }
+\end{algorithm}
+%[/latex]
 
 
 \end{document}
