@@ -1,0 +1,141 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\subsection*{最小多项式}
+
+上文（矩阵的特征多项式和Cayley-Hamilton定理）中提到了矩阵$A$的两个特殊多项式：[label]特征多项式[/label]（characteristic polynomial）和[label]最小多项式[/label]（minimal polynomial）。前者特征多项式$p_A(t)=\det(tI-A)$可以用来B消减矩阵，即：$p_A(A)=0$，该结论也称为[label]Cayley-Hamilton定理[/label]。本文将重点讨论后者：最小多项式。事实上，它也可以用于消减矩阵。
+
+\subsection*{最小多项式}
+
+对于$n \times n$阶矩阵$A$，在所有满足$m(A)=0$的多项式$m(t)$中，其中[label]次数[/label](均指[label]最高项次数[/label])最小的那个，便称为[label]最小多项式[/label]。显然，其次数不大于$n$，且对于任意$c$，都有$cm(A)=0$，则完全可以限制该多项式最高次项的系数为$1$，称为[label]首一多项式[/label]（monic polynomial）。
+
+\subsubsection*{最小多项式的唯一性}
+
+因为$m(t)$的次数不大于$p_A(t)$的次数，则根据[label]欧几里得算法[/label]，有多项式$h(t)$和$r(t)$满足：
+
+\begin{equation}
+\label{eq:ecld}
+p_A(t)=m(t)h(t)+r(t)
+\end{equation}
+
+indent其中[label]余式[/label]$r(t)$的次数小于$m(t)$。由于$p_A(t)$和$m(t)$都是$A$的消减多项式，那么代入$A$后，要使等式成立，则必须有$r(A)=0$。如果$r(t)$不是[label]零多项式[/label]（所有系数为零）的话，也就意味着存在一个次数比$m(t)$还小的多项式，这与$m(t)$次数最小相矛盾。所以，可以推知$r(t)$是零多项式，也就是说$m(t)$整除$p_A(t)$。
+
+另外，如果存在两个次数相同的首一多项式都可以消减$A$，则它们可以彼此整除，可推知两者完全相同。这也就证明了最小次数的首一消减多项式B唯一存在，也称为最小多项式，记作$m_A(t)$。
+
+[alert type="info"]相似矩阵具有相同特征值，也就有相同的特征多项式，以及相同的最小多项式。[/alert]
+
+\subsubsection*{最小多项式和特征多项式的关系}
+
+根据上面的讨论，有：最小多项式$m_A(t)$整除特征多项式$p_A(t)$，那么显然，$m_A(t)$的根同时也是$p_A(t)$的根。下面将证明，反过来$p_A(t)$的根也是$m_A(t)$的根。
+
+设矩阵$A$有特征值$\lambda$，对应的[label]特征向量[/label]为$\boldsymbol{x}$，其首一最小多项式为：$m_A(t)=t^k+a_{k-1}t^{k-1}+\cdots+a_1t+a_0$。由性质$A^r\boldsymbol{x}=\lambda^r\boldsymbol{x}$（$r \geq 1$），可以推得：
+
+\begin{align*}
+m_A(A)\boldsymbol{x}
+&=(A^{k}+a_{k-1}A^{k-1}+\cdots+a_1A+a_0I)\boldsymbol{x} \\
+&=(\lambda^k+a_{k-1}\lambda^{k-1}+\cdots+a_1\lambda+a_0)\boldsymbol{x} \\
+&=m_A(\lambda)\boldsymbol{x}
+\end{align*}
+
+indent由于$m_A(A)=0$，则可以推得$m_A(\lambda)=0$，其含义便是矩阵$A$的特征多项式的根（即：特征值$\lambda$），同时也是其最小多项式的根。那么，如上文所述（见矩阵的特征多项式和Cayley-Hamilton定理一文），根据代数定理，$A$的特征多项式可以表示为：
+
+\begin{equation}
+\label{eq:chpoly}
+p_A(t)=(t-\lambda_1)^{\beta_1}\cdots(t-\lambda_m)^{\beta_m}
+\end{equation}
+
+indent其中$m$为相异的特征值个数，且$\lambda_i$的[label]相重数[/label]为$\beta_i$（$i=1,\cdots,m$，$\beta_1+\cdots+\beta_m=n$）。而$A$的最小多项式也必定具有以下形态：
+
+\begin{equation}
+\label{eq:mmpoly}
+m_A(t)=(t-\lambda_1)^{r_1}\cdots(t-\lambda_m)^{r_m},\quad
+1 \leq r_i \leq \beta_i
+\end{equation}
+
+\subsubsection*{最小多项式实例}
+
+以下面的$4 \times 4$阶矩阵$A$为例：
+
+\[
+A=\begin{bmatrix}2&1&0&0\\0&2&0&0\\0&0&1&1\\0&0&-2&4\end{bmatrix}
+\]
+
+indent其特征多项式为$p_A(t)=(t-3)(t-2)^3$，则其最小多项式$m_A(t)=(t-3)^{r_1}(t-2)^{r_2}$有最小次数$r_1+r_2$使得$m_A(A)=0$。因此，$(r_1,r_2)$可能组合有$(1,1),(1,2),(1,3)$，分别代入后发现$m_A(A)=(A-3I)^{1}(A-2I)^{1} \neq 0$，而$m_A(A)=(A-3I)^{1}(A-2I)^{2}=0$，所以$A$的最小多项式为$m_A(t)=(t-3)(t-2)^2$。
+
+[alert type="error"]注意：上面的方法需要实现求得矩阵的特征多项式，一般只适用于低阶矩阵。而通过[label]循环子空间[/label]，则可以不用求特征多项式。基于循环子空间的最小多项式计算将另文介绍。[/alert]
+
+\subsection*{最小多项式与Jordan典型形式}
+
+事实上，矩阵的最小多项式和[label]Jordan典型形式[/label]有着密切的关系。简单来说，根据最小多项式能判断矩Jordan形式的结构，而Jordan形式反过来也可以计算最小多项式。
+
+上文提到，两个相似矩阵具有相同的特征多项式和最小多项式，因此，考虑$n \times n$阶矩阵$A$的Jordan形式：$A=MJM^{-1}$，其中$J$为[label]Jordan矩阵[/label]，可以推得：$p_A{t}=p_J(t)$，$m_A{t}=m_J(t)$。
+
+在矩阵的三种标准分解一文中，给出了Jordan矩阵$J$的一般形式。设$J$有$m$个相异特征值$\lambda_1,\cdots,\lambda_m$，其中$\lambda_i$的[label]代数重数[/label]为$\beta_i$，[label]指标[/label]为$r_i$。Jordan的典型形式是：对应于特征值$\lambda_i$的所有[/label]基本Jordan分块[/label]的[label]中，最大的分块阶数为$r_i$，它们的直和[/label]为一个超级Jordan分块，且其阶数为$\beta_i$。$J$的特征多项式和最小多项式可以表示为：
+
+\begin{align*}
+p_J(t)&=p_A(t)=(t-\lambda_1)^{\beta_1}\cdots(t-\lambda_i)^{\beta_i}\cdots(t-\lambda_m)^{\beta_m} \\
+m_J(t)&=m_A(t)=(t-\lambda_1)^{r_1}\cdots(t-\lambda_i)^{r_i}\cdots(t-\lambda_m)^{r_m}
+\end{align*}
+
+以下面的Jordan矩阵$J$为例：
+
+\[J=
+\begin{bmatrix}7&1&0&&&&&\\0&7&1&&&&&\\0&0&7&&&&&\\&&&7&1&&&\\&&&0&7&&&\\&&&&&5&1&\\&&&&&0&5&\\&&&&&&&5\end{bmatrix}=
+\begin{bmatrix}7&1&0\\0&7&1\\0&0&7\end{bmatrix}\oplus
+\begin{bmatrix}7&1\\0&7\end{bmatrix}\oplus
+\begin{bmatrix}5\end{bmatrix}\oplus
+\begin{bmatrix}3&1\\0&3\end{bmatrix}\oplus
+\begin{bmatrix}3&1\\0&3\end{bmatrix}
+\]
+
+indent其中，特征值$7$对应的代数重数为$5$，指标为$3$，对应的特征多项式和最小多项式分别为：
+
+\begin{align*}
+p_J(t)&=p_A(t)=(t-7)^{5}(t-5)(t-3)^{4} \\
+m_J(t)&=m_A(t)=(t-7)^{3}(t-5)(t-3)^{2}
+\end{align*}
+
+可以看到，经由矩阵$A$的Jordan形式$J$可得到最小多项式，但Jordan形式的计算往往比最小多项式的计算更困难。较之更关键的是，从最小多项式的形式，可以判定矩阵$A$是否为可对角化矩阵。如果每一个Jordan分块的阶数都为$1$，即$\lambda_i$的指标$r_i=1$，其等价于每个特征值的[label]几何重数[/label]和代数重数相等，于是$A$有完整的$n$个线性无关特征向量，可以对角化。
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

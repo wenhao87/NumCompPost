@@ -1,0 +1,145 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{对称（正定）矩阵的直接三角分解}
+
+% introduction
+对于任意$n \times n$阶矩阵$A$，前文（LU分解的直接三角法）给出了三种直接三角分解法：[label]不选主元[/label]、[label]列主元[/label]和[lable]完全主元[/label]。本文考虑一类特殊矩阵——[label]对称矩阵[/label]和[label]对称正定矩阵[/label]的直接分解法。
+
+\subsection*{对称矩阵的三角分解}
+
+考虑一个$n \times n$阶[label]对称矩阵[/label]$A$，若$A$的[label]顺序主子式[/lable]都不为$0$，则$A$可以唯一分解（B不选主元）为：
+
+\begin{equation}\label{eq:slu}A=LDL^T\end{equation}
+
+indent 其中，$D$为[label]对角矩阵[/label]，$L$为[label]单位下三角矩阵[/label]。理由如下：根据LU分解，有$A=LU,U=DU_0$，其中$D=\text{diag}(u_{11},u_{22},\cdots,u_{nn})$，$U_0$为单位上三角矩阵；因为$A$是对称矩阵，所以有$L(DU_0)=A=A^T=U_0^T(DL^T)$；根据LU分解的B唯一性，得到：$L=U_0^T$，则$A=LDL^T$。
+
+\subsection*{对称正定矩阵的直接三角分解}
+
+如果矩阵$A$为[label]对称正定矩阵[/label]，则$A$可以唯一地分解为如下形式：
+
+\begin{equation}\label{eq:splu}A=LL^T\end{equation}
+
+indent 其中，$L$为[label]下三角矩阵[/label]，且如果其主对角元素都为正，则这种分解B唯一（证略），也将其称之为[label]Cholesky[/label]分解。在Cholesky分解详解一文中，已经详细介绍了对称正定矩阵的Cholesky分解，以及其直接三角求法。对其进行如下转述，对于$1 \leq k \leq n$，有：
+
+\[
+l_{kk}=\sqrt{a_{kk}-\sum_{j=1}^{k-1}l_{kj}^2}
+\]
+\[l_{ik}=\frac{1}{l_{kk}}\left(a_{ik}-\sum_{j=1}^{k-1}l_{ij}l_{kj}\right),\quad i=k+1,k+2,\cdots,n
+\]
+
+Cholesky直接三角分解算法描述如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+\TitleOfAlgo{Direct Triangular Cholesky Factorization}
+\begin{algorithm}[H]
+\For{$k\gets 1$ \KwTo $n-1$}{
+	$a_{kk}\gets \left(a_{kk}-\sum_{j=1}^{k-1}a^2_{kj}\right)^{1/2}$\;
+	\For{$i\gets k+1$ \KwTo $n$}{
+		$a_{ik}\gets \left(a_{ik}-\sum_{j=1}^{k-1}a_{ij}a_{kj}\right)/a_{kk}$\;
+	}
+}
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{Cholesky分解的并行实现}
+
+Cholesky分解的B并行算法实现类似于[label]Gauss消去法[/label]的并行实现，即：使用[label]负载均衡[/label]的[label]一维卷帘存储方式[/label]（见BLAS-3的列主元Gauss消去法详解一文）。设共有$m$个进程，进程编号为$p_1,\cdots,p_{m}$，第$k$次Cholesky分解时，进程$p_{\{k\mod m\}}$计算$a_{kk}$，并将结果发送给其他进程，其他进程在收到$a_{kk}$后同时并行计算$a_{ik},i=k+1,\cdots,n$。重复此过程$n-1$次，即可得到$L$。
+
+\subsubsection*{列方向的Cholesky分解}
+
+可以将前面的Cholesky直接三角分解算法可以改写为如下等价的形式：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+\TitleOfAlgo{Direct Triangular Cholesky Factorization along Column Direction}
+\begin{algorithm}[H]
+\For{$j\gets 1$ \KwTo $n$}{
+	\For{$k\gets 1$ \KwTo $j-1$}{
+		$a_{ij}\gets a_{ij}-a_{jk}a_{ik},\quad i=j,j+1,\cdots,n$\;
+	}
+	$a_{jj}\gets\sqrt{a_{jj}},\quad a_{ij}\gets a_{ij}/a_{jj},\quad i=j+1,j+2,\cdots,n$\;
+}
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+\end{algorithm}
+%[/latex]
+
+这两种算法都称为[label]列方向Cholesky分解[/label]，即：要计算第$j$列需要前面已经计算的列，因此也称为[label]“向左看”算法[/label]、[label]“需求驱动”算法[/label]、[label]“延迟更新”算法[/label]或[label]“扇入”算法[/label]。
+
+\subsubsection*{子矩阵Cholesky分解}
+
+与上面的列方向Cholesky分解算法或“延迟更新”算法相对应的，是[label]子矩阵Cholesky分解[/label]，也称之为[label]“立即更新”算法[/label]、[label]“数据驱动”算法[/label]或[label]“扇出”算法[/label]。其不同之处在于，计算得到$L$的某一列后，该列需要用于更新$A$的后面其他列。子矩阵Cholesky分解算法描述如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+\TitleOfAlgo{Submatrix-based Direct Triangular Cholesky Factorization}
+\begin{algorithm}[H]
+\For{$j\gets 1$ \KwTo $n$}{
+	$a_{kk}\gets\sqrt{a_{kk}},\quad a_{ik}\gets a_{ik}/a_{kk},\quad i=k+1,k+2,\cdots,n$\;
+	\For{$j\gets k+1$ \KwTo $n$}{
+		$a_{ij}\gets a_{ij}-a_{jk}a_{ik},\quad i=j,j+1,\cdots,n$\;
+	}
+}
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+\end{algorithm}
+%[/latex]
+
+[alert type="info"]理论上也有[label]行方向Cholesky分解[/label]，但由于其过程不容易实现，所以一般不采用。[/alert]
+
+最后，对于对称正定矩阵，其LU分解不需要选主元，而如果$A$是$n \times n$阶[label]不定对称矩阵[/label]的话，假设其左上角二阶子矩阵$A_{11}$是不定的，如果使用不选主元的Gauss消去法或者直接三角分解的话，会导致很大的舍入误差。因此，对于不定的对称矩阵，一般需要结合列主元Gauss消去法和二阶块Gauss消去法来保证数值稳定性。
+
+% H4
+% \subsubsection*{}
+
+\end{document}

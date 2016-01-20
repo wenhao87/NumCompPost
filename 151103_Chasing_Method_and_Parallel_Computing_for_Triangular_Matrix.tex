@@ -1,0 +1,223 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{三对角占优矩阵的追赶法分解和三对角方程组的并行求解}
+
+\subsection*{三对角占优矩阵的定义}
+
+考虑[label]带宽[/label]为$3$的[label]$n \times n$阶系数矩阵[/label]（即[label]三对角矩阵[label]）所对应的[label]线性方程组[/label]：
+
+\begin{equation}
+\label{eq:trimat}
+\begin{pmatrix}
+b_1 & c_1 & & & & & \\
+a_2 & b_2 & c_2 & & & & \\
+ & \ddots & \ddots & \ddots & & & \\
+& & a_i & b_i & c_i & & \\
+& & & \ddots & \ddots & \ddots & \\
+& & & & a_{n-1} & b_{n-1} & c_{n-1} \\
+& & & & & b_{n} & c_{n} \\
+\end{pmatrix}
+\begin{pmatrix}
+x_1 \\ x_2 \\ \vdots \\ x_i \\ \vdots \\ x_{n-1} \\ x_n
+\end{pmatrix}=
+\begin{pmatrix}
+f_1 \\ f_2 \\ \vdots \\ f_i \\ \vdots \\ f_{n-1} \\ f_n
+\end{pmatrix}
+\end{equation}
+
+indent 其中，若系数矩阵$A$满足：
+
+\[
+A_{ij}=0,\quad|i-j|>0,\quad|b_1|>|c_1|>0,\quad|b_n|>|c_n|>0
+\]
+
+\[
+|b_i|\geq|a_i|+|c_i|,\quad a_i,c_i \neq 0,\quad i=2,3,\cdots,n-1
+\]
+
+indent 则称系数矩阵$A$为[label]三对角占优矩阵[/label]（也可参考矩阵相关的几个基本概念一文）。
+
+\subsection*{追赶法：三对角占优矩阵的三角分解}
+
+式（\ref{eq:trimat}）中的三对角占优矩阵可以[label]三角分解[/label]为以下形式：
+
+\begin{align*}
+&
+\begin{pmatrix}
+b_1 & c_1 & & & & & \\
+a_2 & b_2 & c_2 & & & & \\
+& \ddots & \ddots & \ddots & & & \\
+\cline{4-4}
+& & a_i & \multicolumn{1}{|c|}{\multirow{1}{*}{$b_i$}} & c_i & & \\
+\cline{4-4}
+& & & \ddots & \ddots & \ddots & \\
+& & & & a_{n-1} & b_{n-1} & c_{n-1} \\
+& & & & & a_{n} & b_{n}
+\end{pmatrix} \\
+=&
+\begin{pmatrix}
+\alpha_1 & & & & & & \\
+r_2 & \alpha_2 & & & & & \\
+& \ddots & \ddots & & & & \\
+\cline{4-4}
+& & r_i & \multicolumn{1}{|c|}{\multirow{1}{*}{$\alpha_i$}} & & & \\
+\cline{4-4}
+& & & \ddots & \ddots & & \\
+& & & & r_{n-1} & \alpha_{n-1} & \\
+& & & & & r_{n} & \alpha_{n}
+\end{pmatrix}
+\begin{pmatrix}
+1 & \beta_1 & & & & & \\
+& 1 & \beta_2 & & & & \\
+& & \ddots & \ddots & & & \\
+\cline{4-4}
+& & & \multicolumn{1}{|c|}{\multirow{1}{*}{$1$}} & \beta_i & & & \\
+\cline{4-4}
+& & & & \ddots & \ddots & & \\
+& & & & & 1 & \beta_{n-1} & \\
+& & & & & & 1
+\end{pmatrix}
+\end{align*}
+
+indent 所以，根据矩阵运算可以得到：
+
+\[
+\begin{cases}
+b_1=\alpha_1,\quad c_1=\alpha_1\beta_1 \\
+a_i=r_i,\quad b_i=r_i\beta_{i-1}+\alpha_i,\quad i=2,3,\cdots,n \\
+c_i=\alpha_i\beta_i,\quad i=2,3,\cdots,n-1
+\end{cases}
+\]
+
+indent 而上式的计算次序为：
+
+\[
+\alpha_1\rightarrow\beta_1\rightarrow\alpha_2\rightarrow\beta_2\rightarrow\cdots\rightarrow\alpha_i\rightarrow\beta_i\rightarrow\cdots\rightarrow\alpha_{n-1}\rightarrow\beta_{n-1}\rightarrow\alpha_n
+\]
+
+indent 需要注意的是，$\beta_i=c_i/\alpha_i$用到了B除法运算，但因为$|\alpha_1|=|b_1|>|c_1|$，可知$0<|\beta_1|<1$，再利用[label]数学归纳法[/label]可以证明$|\alpha_i|>|c_i|>0$，其中$i=1,2,\cdots,n-1$，则有：$|\beta_i|<1$。所以说，这个算法是B稳定的，并称其为[label]追赶法[/label]。
+
+[alert type="error"]注意：也可以对$A$进行[label]LU分解[/label]：$A=LU$，其中$L$为[label]单位下三角矩阵[/label]，$U$为[label]上三角矩阵[/label]，但可能会产生较大[label]舍入误差[/label]，所以三对角占优矩阵的LU分解法B不可靠。[/alert]
+
+\subsection*{三对角矩阵方程组的并行求解}
+
+系数矩阵为三对角矩阵的线性方程组，利用[label]循环约化方法[/label]，可以实现B并行计算。这里，假定系数矩阵的阶数为B奇数，即：$n=2^p-1$，$p$为正整数。类似式（\ref{eq:trimat}），三对角方程组可以表示为：
+
+\begin{align}
+\label{eq:trisys}
+\begin{split}
+a_{i-1}x_{i-2}+b_{i-1}x_{i-1}+c_{i-1}x_{i} &= f_{i-1} \\
+a_ix_{i-1}+b_ix_i+c_ix_{i+1} &= f_i \\
+a_{i+1}x_{i}+b_{i+1}x_{i+1}+c_{i+1}x_{i+2} &= f_{i+1}
+\end{split}
+\end{align}
+
+indent 其中，$1 \leq i \leq n$，且$a_1=c_n=0$。而对式（\ref{eq:trisys}）消元（$x_{i-1}$和$x_{i+1}$）可以得到：
+
+\begin{eqnarray*}
+& a_i\dfrac{f_{i-1}-a_{i-1}x_{i-2}-c_{i-1}x_i}{b_{i-1}}+b_ix_i+c_i\dfrac{f_{i+1}-a_{i+1}x_i-c_{i+1}x_{i+2}}{b_{i+1}}=f_i \\
+& a'_ix_{i-2}+b'_ix_i+c'_ix_{i+2}=f'_i
+\end{eqnarray*}
+
+indent 其中：
+
+\begin{align*}
+a'_i &= -a_i\dfrac{a_{i-1}}{b_{i-1}} \\
+b'_i &= b_i-a_i\dfrac{c_{i-1}}{b_{i-1}}-c_i\dfrac{a_{i+1}}{b_{i+1}} \\
+c'_i &= -c_i\dfrac{c_{i+1}}{b_{i+1}} \\
+f'_i &= f_i-a_i\dfrac{f_{i-1}}{b_{i-1}}-f_{i+1}\dfrac{c_i}{b_{i+1}}
+\end{align*}
+
+indent 至此，可以得到关于$x_2,x_4,\cdots,x_{n-3},x_{n-1}$的线性方程组：
+
+\begin{equation}
+\label{eq:even}
+\begin{pmatrix}
+b'_2 & c'_2 & & & \\
+a'_4 & b'_4 & c'_4 & & \\
+& \ddots & \ddots & \ddots & \\
+& & a'_{n-3} & b'_{n-3} & c'_{n-3} \\
+& & & b'_{n-1} & c'_{n-1}
+\end{pmatrix}
+\begin{pmatrix}
+x_2 \\ x_4 \\ \vdots \\ x_{n-3} \\ x_{n-1}
+\end{pmatrix}=
+\begin{pmatrix}
+f'_2 \\ f'_4 \\ \vdots \\ f'_{n-3} \\ f'_{n-1}
+\end{pmatrix}
+\end{equation}
+
+indent 而对于$x_1,x_3,\cdots,x_{n-2},x_n$来说，因为有$a_ix_{i-1}+b_ix_i+c_ix_{i+1}= f_i$，所以可以将其表示为：
+
+\begin{equation}
+\label{eq:odd}
+\begin{pmatrix}
+b_1 & & & & \\
+& b_3 & & & \\
+& & \ddots & & \\
+& & & b_{n-2} & \\
+& & & & b_n
+\end{pmatrix}
+\begin{pmatrix}
+x_1 \\ x_3 \\ \vdots \\ x_{n-2} \\ x_{n}
+\end{pmatrix}=
+\begin{pmatrix}
+f_1 \\ f_3 \\ \vdots \\ f_{n-2} \\ f_n
+\end{pmatrix}-
+\begin{pmatrix}
+c_1 & & & & \\
+a_3 & c_3 & & & \\
+& \ddots & \ddots & & \\
+& & & a_{n-2} & c_{n-2} \\
+& & & & a_n
+\end{pmatrix}
+\begin{pmatrix}
+x_2 \\ x_4 \\ \vdots \\ x_{n-3} \\ x_{n-1}
+\end{pmatrix}
+\end{equation}
+
+所以，式（\ref{eq:trimat}）被分为了两个$(n/2)\times(n/2)$阶方程组（式\ref{eq:even}、\ref{eq:odd}），而式（\ref{eq:even}）又可以B继续分解为两个更小的$(n/4)\times(n/4)$阶方程组，在式（\ref{eq:even}）的基础之上，式（\ref{eq:odd}）可以B并行求解。这种技术也称为[label]奇偶分开技术[/label]。
+
+
+% H2, H3
+%\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+%\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+%\begin{algorithm}[H]
+%\For{$l\gets 1$ \KwTo $n-1$}{
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+%\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

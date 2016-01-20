@@ -1,0 +1,176 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{详解基于矩阵分裂的迭代格式的收敛性}
+
+在基本迭代法的收敛性分析一文中，简单介绍了迭代格式的收敛性。本文作为补充，将详细分析基于矩阵分裂的迭代算法和格式的收敛性，及其相关定义和性质。
+
+\subsection*{矩阵分裂}
+
+[label]矩阵分裂[/label]（Matrix Splitting）指：设矩阵$\boldsymbol{A}\in\mathbb{R}^{n \times n}$非奇异，称$\boldsymbol{A}=\boldsymbol{M}-\boldsymbol{N}$为$\boldsymbol{A}$的一个矩阵分裂，其中$\boldsymbol{M}$B非奇异。此时，线性方程组$\boldsymbol{Ax}=\boldsymbol{b}$等价于$\boldsymbol{Mx}=\boldsymbol{Nx}+\boldsymbol{b}$。于是，便能构造如下[label]迭代格式[/label]：
+
+\begin{equation}
+    \label{eq:iterformat}
+    \boldsymbol{x}^{(k+1)} = \boldsymbol{M}^{-1}\boldsymbol{N}\boldsymbol{x}^{(k)}+\boldsymbol{M}^{-1}\boldsymbol{b} \triangleq \boldsymbol{G}\boldsymbol{x}^{(k)}+\boldsymbol{g} \;,\quad k=0,1,\ldots,
+\end{equation}
+
+indent其中，$\boldsymbol{G}=\boldsymbol{M}^{-1}\boldsymbol{N}$称为该迭代格式的[lable]迭代矩阵[/label]，因此选取不同的$\boldsymbol{M}$，便能构造不同的迭代算法。
+
+另一方面，观察式（\ref{eq:iterformat}）可知：$\boldsymbol{x}^{(0)}$表示的是B迭代初始值，通过迭代格式便能生成一个[label]迭代序列[/label]$\{\boldsymbol{x}^{(k)}\}_{k=0}^{\infty}$，并记该序列的B极限为$\boldsymbol{x}^{\ast}$，即：
+
+\[
+    \lim_{k\to\infty}\boldsymbol{x}^{(k)} = \boldsymbol{x}^{\ast} \triangleq \boldsymbol{A}^{-1}\boldsymbol{b}
+\]
+
+\subsection*{收敛性定义}
+
+\subsubsection*{序列的收敛定义}
+
+对于[label]向量序列[/label]$\{\boldsymbol{x}^{(k)}\}_{k=0}^{\infty}\subset\mathbb{R}^n$，如果存在$\boldsymbol{x}=(x_1,x_2,\ldots,x_n)^T\in\mathbb{R}^{n}$，满足：
+
+\[
+    \lim_{k\to\infty}x_i^{(k)}=x_i \;,\quad i=1,2,\ldots,n \quad \Rightarrow \quad \lim_{k\to\infty}\boldsymbol{x}^{(k)}=\boldsymbol{x}
+\]
+
+noindent则称$\boldsymbol{x}^{(k)}$收敛到$\boldsymbol{x}$，即：$\boldsymbol{x}$是$\boldsymbol{x}^{(k)}$的极限，其中$x_i^{(k)}$表示$x^{(k)}$的第$i$个分量。
+
+类似地，对于[label]矩阵序列[label]$\left\{\boldsymbol{A}^{(k)}=\left(a_{ij}^{(k)}\right)\right\}_{k=0}^{\infty}\subset\mathbb{R}^{n \times n}$，如果存在矩阵$A=\left(a_{ij}\right)\in\mathbb{R}^{n \times n}$，满足：
+
+\[
+    \lim_{k\to\infty}a_{ij}^{(k)}=a_{ij} \;,\quad i,j=1,2,\ldots,n \quad \Rightarrow \quad \lim_{k\to\infty}\boldsymbol{A}^{(k)} = \boldsymbol{A}
+\]
+
+noindent则称$\boldsymbol{A}^{(k)}$收敛到$\boldsymbol{A}$，即：$\boldsymbol{A}$是$\boldsymbol{A}^{(k)}$的极限。
+
+[alert type="info"]如果对于任意初始向量$\boldsymbol{x}^{(0)}$，都有$\lim_{k\to\infty}\boldsymbol{x}^{(k)}=\boldsymbol{x}$，则称式（\ref{eq:iterformat}）的迭代格式是[label]收敛的[/label]，反之则是[label]发散的[/label]。[/alert]
+
+\subsubsection*{矩阵的谱半径和范数}
+
+事实上，基于矩阵分裂的迭代算法，其收敛性B取决于迭代矩阵的[label]谱半径[/label]。对于矩阵$\boldsymbol{A}\in\mathbb{R}^{n \times n}$，其谱半径定义为：
+
+\[
+    \rho(\boldsymbol{A}) \triangleq \max_{\lambda\in\sigma(\boldsymbol{A})}|\lambda|
+\]
+
+noindent其中，$\sigma(\boldsymbol{A})$表示$\boldsymbol{A}$的所有[label]特征值[/label]所组成的集合。而矩阵的谱半径和[label]矩阵范数[/label]具有如下重要关系（设$\boldsymbol{G}\in\mathbb{R}^{n \times n}$）：对于任意算子范数，都有$\rho(\boldsymbol{G})\leq\|\boldsymbol{G}\|$。证明如下:
+
+\[
+    \boldsymbol{Gx}=\lambda\boldsymbol{x} \quad \Rightarrow \quad
+    |\lambda|\cdot\|\boldsymbol{x}\| = \|\lambda\boldsymbol{x}\| = \|\boldsymbol{Gx}\| \leq \|\boldsymbol{G}\| \cdot \|\boldsymbol{x}\|
+    \quad \Rightarrow \quad |\lambda| \leq \|\boldsymbol{G}\|
+\]
+
+此外，矩阵的谱半径和矩阵范数之间还存在以下几个重要性质（设$\boldsymbol{G}\in\mathbb{R}^{n \times n}$）：
+
+- $\lim_{k\to\infty}\boldsymbol{G}^{k}=0$当且仅当$\rho(G)<1$；
+
+- 对于任意算子范数$\|\cdot\|$，有$\lim_{k\to\infty}\|\boldsymbol{G}^k\|^{\frac{1}{k}}=\rho(\boldsymbol{G})$；
+
+\subsection*{迭代算法的收敛性}
+
+对于基于矩阵分离的迭代算法，如下分别给出迭代算法收敛的B充分条件和B充要条件。
+
+[alert type="info"]B充分条件：若存在算子范数$\|\cdot\|$，使得$\|\boldsymbol{G}\|\leq1$，则式（\ref{eq:iterformat}）的迭代格式收敛。[/alert]
+
+证明如下：
+
+\[
+    \left.\begin{aligned}
+        \boldsymbol{x}^{(k+1)} &= \boldsymbol{Gx}^{(k)} + \boldsymbol{g} \\
+        \boldsymbol{x}^{\ast} &= \boldsymbol{Gx}^{\ast} + \boldsymbol{g} \\
+    \end{aligned} \;\right\} \;\Rightarrow\;
+    \begin{aligned}
+        \boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{\ast} &=
+        \boldsymbol{G}(\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}) \\
+        &= \boldsymbol{G}^2(\boldsymbol{x}^{k-1}-\boldsymbol{x}^{\ast}) \\
+        &= \cdots \\
+        &= \boldsymbol{G}^{(k+1)}(\boldsymbol{x}^{(0)}-\boldsymbol{x}^{\ast})
+    \end{aligned} \;\overset{\|\boldsymbol{G}\|<1}{\Longrightarrow}\;
+    \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{\ast}\|\to0
+\]
+
+[alert type="info"]B充要条件（亦即[label]收敛性定理[/label]）：对于任意迭代初始向量$\boldsymbol{x}^{(0)}$，式（\ref{eq:iterformat}）的迭代格式收敛始终收敛的充要条件是$\rho(\boldsymbol{G})<1$。[/alert]
+
+此外，对于迭代矩阵$\boldsymbol{G}$，式（\ref{eq:iterformat}）迭代算法的b收敛速度定义为：
+
+- [label]平均收敛速度[/label]：$R_k(\boldsymbol{G})\triangleq-\ln\|\boldsymbol{G}^k\|^{\frac{1}{k}}$（它与迭代步数和所用的范数有关）；
+
+- [label]渐进收敛速度[/label]：$R(\boldsymbol{G})\triangleq\lim_{k\to\infty}R_k(\boldsymbol{G})=-\ln\rho(\boldsymbol{G})$（仅依赖于迭代矩阵的谱半径）
+
+最后给出如下几个重要关系式及其证明。对于式（\ref{eq:iterformat}）的迭代算法，如果存在某个算子范数$\|\cdot\|$使得$\|\boldsymbol{G}\|=q<1$，则有：
+
+- $\|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\|\leq q^k\;\|\boldsymbol{x}^{(0)}-\boldsymbol{x}^{\ast}\|$
+
+\[
+    \begin{aligned}
+        \left.\begin{aligned}
+            \boldsymbol{x}^{(k+1)} &= \boldsymbol{Gx}^{(k)}+\boldsymbol{g} \\
+            \boldsymbol{x}^{\ast} &= \boldsymbol{Gx}^{\ast}+\boldsymbol{g} \\
+        \end{aligned} \;\right\}\; &\Rightarrow \;
+        \boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{\ast} = \boldsymbol{G}(\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}) \\
+        &\Rightarrow \;
+        \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{\ast}\| \leq q\; \|(\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast})\| \\
+        &\Rightarrow \;
+        \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\| \leq q^k\; \|(\boldsymbol{x}^{(0)}-\boldsymbol{x}^{\ast})\| \\
+    \end{aligned}
+\]
+
+- $\|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\|\leq\dfrac{q}{1-q}\;\|\boldsymbol{x}^{k}-\boldsymbol{x}^{(k-1)}\|$
+
+\begin{eqnarray*}
+    & \left.\begin{aligned}
+        \boldsymbol{x}^{(k+1)} &= \boldsymbol{Gx}^{(k)}+\boldsymbol{g} \\
+        \boldsymbol{x}^{(k)} &= \boldsymbol{Gx}^{(k-1)}+\boldsymbol{g} \\
+    \end{aligned} \;\right\}\; \Rightarrow \;
+    \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{(k)}\| \leq q \; \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{(k-1)}\| \\
+    & \left.\begin{aligned}
+        \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{(k)}\| &=
+        \|(\boldsymbol{x}^{\ast}-\boldsymbol{x}^{(k)})-(\boldsymbol{x}^{\ast}-\boldsymbol{x}^{(k+1)})\| \\
+        &\geq \|\boldsymbol{x}^{\ast}-\boldsymbol{x}^{(k)}\| -
+        \underbrace{\|\boldsymbol{x}^{\ast}-\boldsymbol{x}^{(k+1)}\|}_{\leq q\;\|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\|} \\
+        &\geq (1-q)\;\|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\|
+    \end{aligned} \;\right\}\; \Rightarrow \;
+    \begin{aligned}
+        \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\| &\leq
+        \dfrac{1}{1-q} \; \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{(k)}\| \\
+        &\leq \dfrac{q}{1-q} \; \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{(k-1)}\|
+    \end{aligned}
+\end{eqnarray*}
+
+- $\|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\|\leq\dfrac{q^k}{1-q}\;\|\boldsymbol{x}^{(1)}-\boldsymbol{x}^{(0)}\|$
+
+\[
+    \left.\begin{aligned}
+        \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{(k)}\| &\leq q \;
+        \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{(k-1)}\| \leq q^k \;
+        \|\boldsymbol{x}^{(1)}-\boldsymbol{x}^{(0)}\| \\
+        \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\| &\leq
+        \dfrac{1}{1-q} \; \|\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^{(k)}\|
+    \end{aligned} \;\right\} \;\Rightarrow\;
+    \|\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}\| \leq \dfrac{q^k}{1-q} \;
+    \|\boldsymbol{x}^{(1)}-\boldsymbol{x}^{(0)}\|
+\]
+
+\end{document}

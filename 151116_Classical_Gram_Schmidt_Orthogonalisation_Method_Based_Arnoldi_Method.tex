@@ -1,0 +1,226 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+上文借由[label]相伴矩阵[/label]引入了[label]Krylov子空间[/label]，它是由一组具有$p(A)\boldsymbol{v}$形式的向量所[label]张成[/label]的子空间，其中$p(A)$是一个关于矩阵$A$的多项式。事实上，求解B大型线性方程组的绝大部分迭代法，都是在Krylov子空间上进行[label]正交投影[/label]或者[label]斜投影[label]，其核心思想就是用$p(A)\boldsymbol{b}$来近似$A^{-1}\boldsymbol{b}$。
+
+在迭代法中投影过程的基本框架一文中提到，求解线性方程组$A\boldsymbol{x}=\boldsymbol{b}$的一种通用的[label]投影方法[/label]是：在$m$维[label]仿射空间[/label]$\boldsymbol{x}^{(0)}+\mathcal{K}_m$上搜索近似解$\boldsymbol{x}^\ast$，并要求其满足[label]Petrov-Galerkin条件[/label]：$\boldsymbol{b}-A\boldsymbol{x}^\ast\perp\mathcal{L}_m$，其中$\mathcal{L}_m$是另外一个$m$维子空间，$\boldsymbol{x}^{(0)}$为任意初始向量。[label]Krylov子空间法[/label]就是令子空间$\mathcal{K}_m$为Krylov子空间，即：
+
+\[
+\mathcal{K}_m(A,\boldsymbol{r}^{(0)})=\text{span}\{\boldsymbol{r}^{(0)},A\boldsymbol{r}^{(0)},A^2\boldsymbol{r}^{(0)},\cdots,A^{m-1}\boldsymbol{r}^{(0)}\}
+\]
+
+indent其中，$\boldsymbol{r}^{(0)}=\boldsymbol{b}-A\boldsymbol{x}^{(0)}$，且除非特别说明，一般就用$\mathcal{K}_m$代表$\mathcal{K}_m(A,\boldsymbol{r}^{(0)})$。对于不同的Krylov子空间法，它们的区别在于子空间$\mathcal{L}_m$的选取上，以及对线性方程组的[label]预处理[/label]上。$\mathcal{L}_m$的选取大致可以分为如下两类：
+
+- $\mathcal{L}_m=\mathcal{K}_m$和$\mathcal{L}_m=A\mathcal{K}_m$
+
+- $\mathcal{L}_m=\mathcal{K}_m(A^T,\boldsymbol{r}^{(0)})$（这里$\mathcal{L}_m$是一个关于$A^T$的Krylov子空间）
+
+\subsection*{Krylov子空间}
+
+令子空间$\mathcal{K}_m(A,\boldsymbol{v})$具有如下形式：
+
+\begin{equation}
+\label{eq:kmv}
+\mathcal{K}_m(A,\boldsymbol{v})\equiv\text{span}\{\boldsymbol{v},A\boldsymbol{v},A^2\boldsymbol{v},\cdots,A^{m-1}\boldsymbol{v}\}
+\end{equation}
+
+indent则$\mathcal{K}_m$是$\mathbb{R}^n$的一个子空间，其中的任意向量$\boldsymbol{x}$都可以表示为：
+
+\begin{align*}
+\boldsymbol{x}&=a_0\boldsymbol{v}+a_1A\boldsymbol{v}+a_2A^2\boldsymbol{v}+\cdots+a_{m-1}A^{m-1}\boldsymbol{v} \\
+&=(a_0+a_1A+a_2A^2+\cdots+a_{m-1}A^{m-1})\boldsymbol{v} \\
+&=p(A)\boldsymbol{v}
+\end{align*}
+
+indent其中，$p$是一个最高次数不超过$m-1$的多项式。另一方面，向量$\boldsymbol{v}$的[label]最小多项式[/label]定义为满足$p(A)\boldsymbol{v}=0$且其中B次数最小的首一多项式$p$，而这个$\boldsymbol{v}$关于$A$的最小多项式的次数，便称为$\boldsymbol{v}$关于$A$的[label]阶数[/label]（grade），也可以直接称为$\boldsymbol{v}$的阶数。根据[label]Cayley-Hamilton定理[/label]，$\boldsymbol{v}$的阶数不超过$n$（见矩阵的特征多项式和Cayley-Hamilton定理一文）。所以，如果$\mu$是$\boldsymbol{v}$的阶数，则$\mathcal{K}_\mu$是$A$的不变子空间，且对于任意$m\geq\mu$，都有$\mathcal{K}_m=\mathcal{\mu}$，理由是$\mathcal{K}_m$的维数不会再增加。据此，可以得到另一个重要结论：Krylov子空间$\mathcal{K}_m$的维数为$m$，当且仅当$\boldsymbol{v}$关于$A$的阶数$\mu$满足：$\text{grade}(\mu)\geq m$，即：
+
+\begin{eqnarray*}
+& \dim(\mathcal{K}_m)=m\quad\Longleftrightarrow\quad\text{grade}(\boldsymbol{v})\geq m \\
+& \dim(\mathcal{K}_m)=\min\{m,\text{grade}(\boldsymbol{v})\}
+\end{eqnarray*}
+
+在详解不变子空间和限定算子表示矩阵一文中提到，如果将$A$限定在一个子空间$\mathcal{X}$上，则可以用限定算子$A_{/\mathcal{X}}$来表示。令$Q$为$\mathcal{X}$上的一个[label]投影算子[/label]，则$A$在$\mathcal{X}$上的投影部分可以表示为$QA_{/\mathcal{X}}$，那么如果$\mathcal{X}$是一个Krylov子空间$\mathcal{K}_m$，则有：$A_m=Q_mA_{/\mathcal{K}_m}$，其中，$Q_m$是$\mathcal{K}_m$上的投影算子，$A_m$是$A$在$\mathcal{K}_m$上的投影部分。
+
+\subsection*{基本Arnoldi算法}
+
+有两种方法对Krylov子空间$\mathcal{K}_m$进行正交化，一种是[label]Gram-Schmidt正交化[/label]，另一种是[label]Householder正交化[/label]。本文将简单介绍基于Gram-Schmidt正交化的基本[label]Arnoldi算法[/label]。基于[label]改进的Gram-Schmidt正交化[/label]和Householder正交化的Arnoldi算法将另文详述。
+
+\subsubsection*{Gram-Schmidt正交化思想}
+
+在线性无关向量组的Gram-Schmidt正交化一文中，给出了经典的Gram-Schmidt正交化方法。其核心思想是：将$m$个线性无关的$n$维向量组$\{\boldsymbol{x}_j\}_{j=1}^m$，使用Gram-Schmidt正交化产生相互正交的单位向量组$\{\boldsymbol{q}_j\}_{j=1}^m$，即：
+
+\[
+\text{span}\{\boldsymbol{x}_1,\boldsymbol{x}_2,\cdots,\boldsymbol{x}_j\}=\text{span}\{\boldsymbol{q}_1,\boldsymbol{q}_2,\cdots,\boldsymbol{q}_j\},\quad j=1,2,\cdots,m
+\]
+
+indent其中，$\boldsymbol{q}_j$满足如下关系式：
+
+\begin{align*}
+\boldsymbol{q}_j^T\boldsymbol{x}_j\boldsymbol{q}_j&=\boldsymbol{x}_j-\left(\boldsymbol{q}_1^T\boldsymbol{x}_j\boldsymbol{q}_1+\boldsymbol{q}_2^T\boldsymbol{x}_j\boldsymbol{q}_2+\cdots+\boldsymbol{q}_{j-1}^T\boldsymbol{x}_j\boldsymbol{q}_{j-1}\right) \\
+&=\boldsymbol{x}_j-\sum_{i=1}^{j-1}\boldsymbol{q}_i^T\boldsymbol{x}_j\boldsymbol{q}_i\\
+\Longleftrightarrow\quad r_{jj}\boldsymbol{q}_j&=\boldsymbol{x}_j-\sum_{i=1}^{j-1}r_{ij}\boldsymbol{q}_i=\tilde{\boldsymbol{q}}_j \\
+\text{where }&
+\begin{cases}
+r_{ij}=\boldsymbol{q}_i^T\boldsymbol{x}_j=(\boldsymbol{x}_j,\boldsymbol{q}_i),\quad i=1,\cdots,j-1 \\
+r_{jj}=\|\tilde{\boldsymbol{q}}_j\|
+\end{cases}
+\end{align*}
+
+类比该思想，Krylov子空间$\mathcal{K}_m$的Gram-Schmidt正交化，可以表示为：
+
+\[
+\begin{array}{rrrrrrrr}
+\text{span}\{ & \boldsymbol{v}_1, & A\boldsymbol{v}_1, & \cdots, & A^{j-1}\boldsymbol{v}_1, & A^j\boldsymbol{v}_1, & \cdots, & A^{m-1}\boldsymbol{v}_1\} \\
+=\:\text{span}\{ & \boldsymbol{v}_1, & \boldsymbol{v}_2, & \cdots, & \boldsymbol{v}_j, & \boldsymbol{v}_{j+1}, & \cdots, & \boldsymbol{v}_m\}
+\end{array}
+\]
+
+indent也就是说，$\boldsymbol{v}_{j+1}$是$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_j,A^j\boldsymbol{v}_1$的线性组合，但其中的$A^j\boldsymbol{v}_1$直接计算的话，工作量太大。仔细观察可以发现，$\boldsymbol{v}_j$是$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_{j-1},A^{j-1}\boldsymbol{v}_1$的线性组合，那么同乘以$A$的话，则有$A\boldsymbol{v}_j$是$A\boldsymbol{v}_1,\cdots,A\boldsymbol{v}_{j-1},A^{j}\boldsymbol{v}_1$的线性组合，也就是说$A\boldsymbol{v}_j$包含有成分$A^j\boldsymbol{v}_1$。因此，$\boldsymbol{v}_{j+1}$可以表示成$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_j,A\boldsymbol{v}_j$的线性组合，从而大大减少了计算量，并有如下关系式：
+
+\begin{align*}
+\boldsymbol{v}_{j+1}^T(A\boldsymbol{v}_j)\boldsymbol{v}_{j+1}&=
+A\boldsymbol{v}_j-\Big(\boldsymbol{v}_1^T(A\boldsymbol{v}_j)\boldsymbol{v}_1+\boldsymbol{v}_2^T(A\boldsymbol{v}_j)\boldsymbol{v}_2+\cdots+\boldsymbol{v}_j^T(A\boldsymbol{v}_j)\boldsymbol{v}_j\Big)\\
+&=A\boldsymbol{v}_j-\sum_{i=1}^j\boldsymbol{v}_i^T(A\boldsymbol{v}_j)\boldsymbol{v}_i \\
+h_{j+1,j}\boldsymbol{v}_{j+1}&=A\boldsymbol{v}_j-\sum_{i=1}^jh_{ij}\boldsymbol{v}_i=\boldsymbol{w}_j,\quad\begin{cases}
+h_{ij}=\boldsymbol{v}_i^T(A\boldsymbol{v}_j)=\left(A\boldsymbol{v}_j,\boldsymbol{v}_i\right),\quad i=1,\cdots,j \\
+h_{j+1,j}=\|\boldsymbol{w}_j\|_2
+\end{cases} \\
+\boldsymbol{v}_{j+1}&=\boldsymbol{w}_j/\|\boldsymbol{w}_j\|_2=\boldsymbol{w}_j/h_{j+1,j}
+\end{align*}
+
+\subsubsection*{基本Arnoldi算法实现}
+
+上述基于Gram-Schmidt正交化方法的Krylov子空间$\mathcal{K}_m$的正交化，便是[label]Arnoldi方法[/label]。在算法的第$j$步，将[label]Arnoldi向量[/label]$\boldsymbol{v}_j$（已正交化）左乘$A$，并按经典Gram-Schmidt正交化过程计算$\boldsymbol{w}_j$，使其与之前的所有$\boldsymbol{v}_i$都正交，并得到新的正交化向量$\boldsymbol{v}_{j+1}$。给定$n \times n$阶矩阵$A$以及正整数$m$，Arnoldi算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Arnoldi}
+\begin{algorithm}[H]
+choose a vector $\boldsymbol{v}_1$, such that $\|\boldsymbol{v}_1\|_2=1$\;
+\For{$j\gets 1$ \KwTo $m$}{
+	$h_{ij} \gets (A\boldsymbol{v}_j,\boldsymbol{v}_i),\:i=1,\cdots,j$\;
+	$\boldsymbol{w}_j=A\boldsymbol{v}_j-\sum_{i=1}^jh_{ij}\boldsymbol{v}_i$\;
+	$h_{j+1,j}=\|\boldsymbol{w}_j\|_2$\;
+	\If{$h_{j+1,j}=0$}{Stop\;}
+	$\boldsymbol{v}_{j+1}=\boldsymbol{w}_{j}/h_{j+1,j}$\;
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{基本Arnoldi算法分析}
+
+如果上述算法在第$j(j \leq m)$步终止，也就是说：
+
+\begin{eqnarray*}
+& h_{i+1,i} \neq 0,\quad i=1,\cdots,j-1 \\
+& h_{j+1,j}=0
+\end{eqnarray*}
+
+indent其含义等价于$\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_j\}$构成了$\mathcal{K}_m$的[label]标准正交基[/label]，此时$\dim(\mathcal{K}_m)=\text{grad}  (A,\boldsymbol{v}_1)=j$，换言之，$\boldsymbol{v}_1$关于$A$的最小多项式的阶数为即为$j$。
+
+如果上述算法在第$m$次循环之前，都没有结束，换言之，$h_{j+1,j} \neq 0$（$j=1,\cdots,m-1$），则说明算法产生了$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m$，并且它们构成了$\mathcal{K}_m$的标准正交基，即：
+
+\[\mathcal{K}_m=\text{span}\{\boldsymbol{v}_1,\boldsymbol{v}_2,\cdots,\boldsymbol{v}_m\}\]
+
+indent另一方面，根据Gram-Schmidt正交化方法，有：
+
+\begin{eqnarray*}
+& \displaystyle\boldsymbol{v}_{j+1}^T(A\boldsymbol{v}_j)\boldsymbol{v}_{j+1}=A\boldsymbol{v}_j-\sum_{i=1}^j\boldsymbol{v}_i^T(A\boldsymbol{v}_j)\boldsymbol{v}_i \\
+& \displaystyle h_{j+1,j}\boldsymbol{v}_{j+1}=A\boldsymbol{v}_j-\sum_{i=1
+}^jh_{ij}\boldsymbol{v}_i\quad\Longleftrightarrow\quad A\boldsymbol{v}_j=\sum_{i=1}^{j+1}h_{ij}\boldsymbol{v}_i
+\end{eqnarray*}
+
+indent如果展开上面的最后一个等式，可以得到：
+
+\begin{align}
+\label{eq:avhv}
+\begin{split}
+A\boldsymbol{v}_1 &= h_{11}\boldsymbol{v}_1+h_{21}\boldsymbol{v}_2 \\
+A\boldsymbol{v}_2 &= h_{12}\boldsymbol{v}_1+h_{22}\boldsymbol{v}_2+h_{32}\boldsymbol{v}_3 \\
+&\cdots \\
+A\boldsymbol{v}_{m-1} &= h_{1,m-1}\boldsymbol{v}_1+\cdots+h_{m-1,m-1}\boldsymbol{v}_{m-1}+h_{m,m-1}\boldsymbol{v}_m \\
+A\boldsymbol{v}_{m} &= h_{1m}\boldsymbol{v}_1+\cdots+h_{mm}\boldsymbol{v}_m+\big(h_{m+1,m}\boldsymbol{v}_{m+1}\big)
+\end{split}
+\end{align}
+
+indent如果将式（\ref{eq:avhv}）用矩阵形式表示的话，有：
+
+\begin{align}
+\label{eq:avvhbar}
+\begin{split}
+A\begin{pmatrix}\boldsymbol{v}_1 & \cdots & \boldsymbol{v}_m \end{pmatrix} &=
+\begin{pmatrix}\begin{array}{ccc|c}\boldsymbol{v}_1 & \cdots & \boldsymbol{v}_{m} & \boldsymbol{v}_{m+1}\end{array}\end{pmatrix}
+\begin{pmatrix}
+h_{11} & h_{21} & \cdots & \cdots & \cdots \\
+h_{21} & h_{22} & \cdots & \cdots & \cdots \\
+& h_{32} & \ddots &  & \vdots \\
+& & \ddots & \ddots & \vdots \\
+& & & h_{m,m-1} & h_{mm} \\
+\cline{1-5}
+& & & & h_{m+1,m}
+\end{pmatrix} \\
+\Longleftrightarrow\quad AV_m&=V_{m+1}\bar{H}_m
+\end{split}
+\end{align}
+
+indent其中，$V_m$是列向量$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m$构成的$n \times m$阶矩阵，$V_{m+1}=\left(V_m,\boldsymbol{v}_{m+1}\right)$的阶数则为$n \times (m+1)$，$\bar{H}_m$是$(m+1) \times m$阶[label]上Hessenberg矩阵[/label]。观察式（\ref{eq:avhv}），其最后一项$h_{m+1,m}\boldsymbol{v}_{m+1}$即为$\boldsymbol{w}_j$，则$A\boldsymbol{v}_m$可以表示为：
+
+\[A\boldsymbol{v}_m=\begin{pmatrix}\boldsymbol{v}_1&\cdots&\boldsymbol{v}_m\end{pmatrix}\begin{pmatrix}h_{1m}\\\cdots\\h_{mm}\end{pmatrix}+\boldsymbol{w}_j\]
+
+indent因此，式（\ref{eq:avvhbar}）可以进一步改写为如下形式：
+
+\begin{equation}
+\label{eq:avvh}
+AV_m=V_mH_m+\boldsymbol{w}_j\boldsymbol{e}_m^T
+\end{equation}
+
+indent其中，$H_m$是$\bar{H}_m$去掉最后一行得到的上Hessenberg矩阵。如果将式（\ref{eq:avvh}）两边同时左乘$V_m^T$，由其正交化性质，可以推知：$V^T_mV_m=I$，$V^T_m\boldsymbol{w}_j\boldsymbol{e}_m^T=0$，所以最后有：
+
+\[
+V^T_mAV_m=H_m
+\]
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

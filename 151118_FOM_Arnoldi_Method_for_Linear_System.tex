@@ -1,0 +1,247 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{FOM}
+
+%[aside_content]
+
+求解[label]线性方程组[/label]$A\boldsymbol{x}=\boldsymbol{b}$的[label]现代迭代法[/label]都是在[label]Krylov子空间[/label]框架下进行推导的（见由相伴矩阵引入Krylov子空间法一文）。在$\mathbb{R}^n$中，关于$A$和$\boldsymbol{r}_0$的Krylov子空间定义为：
+
+\[
+\mathcal{K}_m\equiv\mathcal{K}_{m}(A,\boldsymbol{r}_0)=
+\text{span}\{\boldsymbol{r}_0,A\boldsymbol{r}_0,\cdots,A^{m-1}\boldsymbol{r}_0\}
+\]
+
+indent其中，$m$为给定正整数，$\boldsymbol{r}_0=\boldsymbol{b}-A\boldsymbol{x}_0$为任意选取的$n$维初始向量$\boldsymbol{x}_0$的初始[label]残差[/label]，并以$\boldsymbol{r}_0$作为Krylov子空间的[label]种子向量[/label]，也称为[label]循环向量[/label]。
+
+为了结合[label]投影方法[/label]（见迭代法中投影过程的基本框架一文），需要选取Krylov子空间$\mathcal{K}_m$上的一组[label]正交基[/label]。主要有两种求解正交基的正交化方法：基于[label]Gram-Schmidt正交化[/label]方法的Arnoldi方法，简称[label]Arnoldi方法[/label]，它又可以分为经典的和改进的两种Gram-Schmidt正交化（见基于经典Gram-Schmidt正交化方法的Arnoldi算法和改进的和不完全正交化的Arnoldi算法两篇文章）；另一种则是基于[label]Householder正交化[/label]的Arnoldi方法，简称为Householder正交化。
+
+相比基于Gram-Schmidt正交化的Arnoldi方法，Householder正交化具有更好的数值稳定性，但计算量近乎于Arnoldi方法的两倍（见基于Householder正交化方法的Arnoldi算法一文），但这两者在数学上是B完全等价的。设$V_m=\{\boldsymbol{v}_1,\boldsymbol{v}_2,\cdots,\boldsymbol{v}_m\}$中的列向量为Krylov子空间$\mathcal{K}_m$的[label]标准正交基[/label]，有：
+
+\begin{equation}
+\label{eq:avvh}
+AV_m=V_{m+1}\bar{H}_m=V_mH_m+h_{m+1,m}\boldsymbol{v}_{m+1}\boldsymbol{e}_m^T
+\quad\Longleftrightarrow\quad
+V_m^TAV_m=H_m
+\end{equation}
+
+indent其中，$\boldsymbol{v}_1=\boldsymbol{r}_0/\|\boldsymbol{r}_0\|_2$，而$H_m$为$m \times m$阶上[label]Hessenberg矩阵[/label]。
+
+\subsection*{Arnoldi方法的Krylov子空间框架}
+
+在迭代法中投影过程的基本框架一文中提到，投影过程就是在如下的[label]仿射空间[/label]（affine space）中寻找近似解$\boldsymbol{x}_m$：
+
+\begin{equation}
+\label{eq:xkm}
+\boldsymbol{x}_0+\mathcal{K}_m=\{\boldsymbol{x}_0+\boldsymbol{x}:\boldsymbol{x}\in\mathcal{K}_m\}
+\end{equation}
+
+indent并使其残差满足[label]Petrov-Galerkin条件[/label]：$\boldsymbol{b}-A\boldsymbol{x}_m\perp\mathcal{L}_m$，其中$\mathcal{L}_m$是另一个Krylov子空间。本文所要讨论的用于求解线性方程组的Arnoldi方法，都要求$\mathcal{L}_m=\mathcal{K}_m$。换言之，残差满足条件：
+
+\begin{equation}
+\label{eq:galer}
+\boldsymbol{b}-A\boldsymbol{x}_m\perp\mathcal{K}_m
+\end{equation}
+
+indent式（\ref{eq:galer}）也称为[label]Galerkin条件[/label]。有了Galerkin条件之后，便可以进行线性方程组$A\boldsymbol{x}=\boldsymbol{b}$的求解了，其方法统称为线性方程组的Arnoldi方法，主要包括完全正交化方法（[label]FOM[/label]）和相关的变形版本，如：重新开始的FOM方法（[label]Restarted FOM[/label]）、不完全正交化方法（[label]IOM[/label]）、直接不完全正交分解（[label]DIOM[/label]）等。本文主要讨论前两种Arnoldi方法，IOM和DIOM方法将另文详述。
+
+[alert type="error"]注意：如前所述，这里所讨论的Arnoldi方法及其相关算法都指的是基于Gram-Schmidt正交化方法的Arnoldi方法。[/alert]
+
+\subsection*{线性方程组的Arnoldi方法的基本原理}
+
+由于式（\ref{eq:avvh}）中$V_m$的列向量是$\mathcal{K}_m$的标准正交基，所以式（\ref{eq:galer}）等价于：
+
+\begin{equation}
+\label{eq:vtkm}
+V_m^T(\boldsymbol{b}-A\boldsymbol{x}_m)=0
+\end{equation}
+
+indent而另一方面，由于$\boldsymbol{x}_m$在仿射空间$\boldsymbol{x}_0+\mathcal{K}_m$中，而$\mathcal{K}_m$中的任意向量都可以表示为其标准向量基的[label]线性组合[/label]，因此根据式（\ref{eq:xkm}），$\boldsymbol{x}_m$可以表示为如下形式：
+
+\begin{equation}
+\label{eq:xvy}
+\boldsymbol{x}_m=\boldsymbol{x}_0+V_m\boldsymbol{y}_m,\quad\boldsymbol{y}_m\in\mathbb{R}^m
+\end{equation}
+
+indent结合式（\ref{eq:vtkm}）和式（\ref{eq:xvy}），可以得到：
+
+\begin{align}
+\label{eq:vrhy}
+\begin{split}
+0=V_m^T(\boldsymbol{b}-A\boldsymbol{x}_m)&=V_m^T(\boldsymbol{b}-A(\boldsymbol{x}_0+V_m\boldsymbol{y}_m)) \\
+&=V_m^T(\boldsymbol{r}_0-AV_m\boldsymbol{y}_m)=V_m^T\boldsymbol{r}_0-V_m^TAV_m\boldsymbol{y}_m
+\end{split}
+\end{align}
+
+indent观察式（\ref{eq:vrhy}）的最右端，结合此前的假定$\boldsymbol{v}_1=\boldsymbol{r}_0/\|\boldsymbol{r}_0\|_2$其中$V_m^T\boldsymbol{r}_0$可以表示为：
+
+\[
+\begin{pmatrix}\boldsymbol{v}_1^T\\\boldsymbol{v}_2^T\\\vdots\\\boldsymbol{v}^T_{m-1}\\\boldsymbol{v}_m^T\end{pmatrix}
+\begin{pmatrix}~\\~\\\boldsymbol{v}_1\|\boldsymbol{r}_0\|_2\\~\\~\end{pmatrix}=
+\begin{pmatrix}\|\boldsymbol{r}_0\|_2\\0\\\vdots\\0\\0\end{pmatrix}=\beta\boldsymbol{e}_1,\quad\beta=\|\boldsymbol{r}_0\|_2
+\]
+
+indent再结合式（\ref{eq:avvh}）的$V_m^TAV_m=H_m$，于是最终式（\ref{eq:vrhy}）可以表示为如下形式：
+
+\begin{equation}
+\label{eq:ym}
+\begin{array}{lc}
+& \beta\boldsymbol{e}_1-H_m\boldsymbol{y}_m=0 \\
+\Longrightarrow & \boldsymbol{y}_m=(H_m)^{-1}(\beta\boldsymbol{e}_1)
+\end{array}\quad
+,\quad\beta=\|\boldsymbol{r}_0\|_2
+\end{equation}
+
+indent按式（\ref{eq:ym}）求得$\boldsymbol{y}_m$后，便可根据式（\ref{eq:xvy}）求得$\boldsymbol{x}_m$，并由$\boldsymbol{b}-A\boldsymbol{x}_m$确定其残差。然而观察式（\ref{eq:vrhy}）的话可以发现，$\boldsymbol{x}_m$的残差$\boldsymbol{r}_m$的计算并不需要显式用到$\boldsymbol{x}_m$，因为：
+
+\begin{align*}
+\boldsymbol{b}-A\boldsymbol{x}_m&=\boldsymbol{b}-A(\boldsymbol{x}_0+V_m\boldsymbol{y}_m)=\boldsymbol{r}_0-AV_m\boldsymbol{y}_m \\
+&=\boldsymbol{r}_0-(V_mH_m+h_{m+1,m}\boldsymbol{v}_{m+1}\boldsymbol{e}_m^T)\boldsymbol{y}_m \\
+&=\boldsymbol{r}_0-V_mH_m(H_m)^{-1}(\beta\boldsymbol{e}_1)-(h_{m+1,m}\boldsymbol{v}_{m+1}\boldsymbol{e}_m^T)\boldsymbol{y}_m \\
+&=\boldsymbol{r}_0-\beta\boldsymbol{v}_1-(h_{m+1,m}\boldsymbol{v}_{m+1}\boldsymbol{e}_m^T)\boldsymbol{y}_m \\
+&=\boldsymbol{r}_0-\|\boldsymbol{r}_0\|_2(\boldsymbol{r}_0/\|\boldsymbol{r}_0\|_2)-(h_{m+1,m}\boldsymbol{v}_{m+1}\boldsymbol{e}_m^T)\boldsymbol{y}_m \\
+&=-(h_{m+1,m}\boldsymbol{v}_{m+1}\boldsymbol{e}_m^T)\boldsymbol{y}_m
+=-h_{m+1,m}(\boldsymbol{e}_m^T\boldsymbol{y}_m)\boldsymbol{v}_{m+1}
+\end{align*}
+
+indent另外，根据Arnoldi算法有：$h_{m+1,m}\geq0$，$\boldsymbol{v}_{m+1}$是[label]单位向量[/label]，所以有：
+
+\begin{equation}
+\label{eq:rmnorm}\|\boldsymbol{b}-A\boldsymbol{x}_m\|_2=h_{m+1,m}|\boldsymbol{e}_m^T\boldsymbol{y}_m|
+\end{equation}
+
+indent所以，当$h_{m+1,m}$很小时，近似解$\boldsymbol{x}_m$的残差就很小。因此，可以用$h_{m+1,m}$是否很小来作为迭代是否终止的判断依据。特别地，当$h_{m+1,m}=0$时，此时的$\boldsymbol{x}_m$便是$A\boldsymbol{x}=\boldsymbol{b}$的解。
+
+\subsection*{完全正交化方法（FOM）}
+
+上述过程便是求解线性方程组的Arnoldi方法的基本原理和过程，结合其中的Krylov子空间$\mathcal{K}_m$的正交化过程后，便能得到[label]完全正交化方法[/label]（[label]FOM[/label]）。这里主要采用改进的Gram-Schmidt正交化方法来对Krylov子空间$\mathcal{K}_m$进行正交化，其算法和原理可以参见改进的和不完全正交化的Arnoldi算法一文。
+
+\subsubsection*{完全正交化方法（FOM）算法流程}
+
+完全正交化方法（FOM）的算法流程可以描述为：
+
+- 给定一个正整数$m$和一个初始向量$\boldsymbol{x}_0$，计算其残差$\boldsymbol{r}_0$，将其归一化后作为Krylov子空间$\mathcal{K}_m$的种子向量$\boldsymbol{v}_1$；
+
+- 根据改进的Gram-Schmidt正交化的Arnoldi方法，对Krylov子空间$\mathcal{K}_m$进行正交化，得到该子空间的一组[label]基底向量[/label]$V_m=\{\boldsymbol{v}_1,\boldsymbol{v}_2,\cdots,\boldsymbol{v}_m\}$，以及[label]上Hessenberg矩阵[/label]$H_m=\{h_{ij}\}$；
+
+- 根据式（\ref{eq:ym}），利用求得的$H_m$可以计算得到$\boldsymbol{y}_m$；
+
+- 根据式（\ref{eq:xvy}），计算得到$\boldsymbol{x}_m$，它便是线性方程组的近似解。
+
+\subsubsection*{完全正交化方法（FOM）算法实现}
+
+对于给定的$A\in\mathbb{R}^{n \times n}$，$\boldsymbol{b},\boldsymbol{x}_0\in\mathbb{R}^{n}$，以及正整数$m$，完全正交化方法（FOM）算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Full Orthogonalization Method(FOM)}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\beta\gets\|\boldsymbol{r}_0\|_2$, $\boldsymbol{v}_1\gets\boldsymbol{r}_0/\beta$\;
+define $H_m=\{h_{ij}\}_{i,j=1,\cdots,m}$; set $H_m=0$\;
+\For{$j\gets 1$ \KwTo $m$}{
+	$\boldsymbol{w}_j\gets A\boldsymbol{v}_j$\;
+	\For{$i\gets 1$ \KwTo $j$}{
+		$h_{ij}\gets(\boldsymbol{w}_j,\boldsymbol{v}_i)$\;
+		$\boldsymbol{w}_j\gets\boldsymbol{w}_j-h_{ij}\boldsymbol{v}_i$\;
+	}
+	$h_{j+1,j}\gets\|\boldsymbol{w}_j\|_2$\;
+	\If{$h_{j+1,j}=0$}{
+		set $m\gets j$; Goto 15\;
+	}
+	$\boldsymbol{v}_{j+1}\gets\boldsymbol{w}_j/h_{j+1,j}$\;
+}
+$\boldsymbol{y}_m\gets H_m^{-1}(\beta\boldsymbol{e}_1)$; $\boldsymbol{x}_m\gets\boldsymbol{x}_0+V_m\boldsymbol{y}_m$\;
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{完全正交化方法（FOM）算法说明}
+
+对于上述算法，有以下几点需要特别说明：
+
+- 算法第$3\thicksim14$行的循环便是基于改进的Gram-Schmidt正交化方法的Arnoldi方法，具体体现在内循环（第$5\thicksim8$行）中$\boldsymbol{w}_j$和$h_{ij}$的耦合计算；
+
+- 第$j$步正交化过程中，如果$h_{j+1,j}=0$，则说明找到了精确解$\boldsymbol{x}_m$，将$j$作为Krylov子空间$\mathcal{K}_m$新的维数后，便可退出正交化过程（第$11\thicksim13$行）；
+
+- 第$15$行得到的$\boldsymbol{x}_m$，便是线性方程组在以$\boldsymbol{r}_0$作为种子向量的Krylov子空间$\mathcal{K}_m$上寻找到的近似解；
+
+[alert type="error"]注意：如果$\boldsymbol{x}_m$的残差很大（如前所述，可以以$h_{m+1,m}$的值作为判断依据），那么可以将得到的$\boldsymbol{x}_m$作为新的$\boldsymbol{x}_0$，并重新开始新一轮的Arnoldi正交化计算。这就是所谓的[label]重新开始的FOM方法[/label]。[/alert]
+
+\subsection*{重新开始的FOM方法}
+
+\subsubsection*{重新开始的FOM方法算法实现}
+
+显然，只需要在上述完全正交化方法（FOM）的最后加入精度判断条件，便能得到[label]重新开始的FOM方法[/label]（这里以$h_{m+1,m}$的值作为判断依据），其算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Full Orthogonalization Method(FOM)}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\beta\gets\|\boldsymbol{r}_0\|_2$, $\boldsymbol{v}_1\gets\boldsymbol{r}_0/\beta$\;
+define $H_m=\{h_{ij}\}_{i,j=1,\cdots,m}$; set $H_m=0$\;
+\For{$j\gets 1$ \KwTo $m$}{
+	\tcc{exactly the same procedure as FOM}
+}
+$\boldsymbol{y}_m\gets H_m^{-1}(\beta\boldsymbol{e}_1)$; $\boldsymbol{x}_m\gets\boldsymbol{x}_0+V_m\boldsymbol{y}_m$\;
+\eIf{$h_{m+1,m}$ is small enough}{
+	Stop\;
+	}{
+	$\boldsymbol{x}_0\gets\boldsymbol{x}_m$ and Goto 1\;
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{重新开始的FOM方法算法说明}
+
+正如在基于Householder正交化方法的Arnoldi算法一文最后所提到的，随着$m$的增大，基于Gram-Schmidt正交化的Arnoldi方法，其计算量按$\mathcal{O}(m^2n)$级别增加；而存储量则以$\mathcal{O}(mn)$级别增加。因此，对于$n$很大的大型线性方程组来说，它同时也限制了最大可使用的$m$的值。此时，有两种补救办法：一种便是使用上述的重新开始的FOM方法，在$m$固定的情况下（计算量和存储量也固定），通过连续使用FOM方法，使最终结果达到满意的精度；另一种方法则是“缩减”正交化的工作量，也就是所谓的[label]不完全正交化方法（IOM）[/label]，后续将另文详述。
+
+其实，重新开始的FOM方法也有一种变形。由于合适的$m$值事先很难确定（可大可小），因此可以尝试从$m=1$开始，并在一次FOM方法完成后，将$m$的值增加$1$（改写算法第$9$行处），然后进行下一次的FOM方法，直到$m$达到预设的最大值$m_{max}$。
+
+%[/aside_content]
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

@@ -1,0 +1,147 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{稀疏矩阵的图表示和行列重排}
+
+[label]图论[/label]有助于发掘[label]稀疏矩阵[/label]中的[label]Gauss消去法[/label]和[label]预处理[/label]技术的并行性，另一方面，对于大型稀疏矩阵，不论是[label]直接解法[/label]还是[label]迭代法[/label]，在它们的并行实现中，都会用到[label]行列重排[/label]技术。本文主要就这两方面进行详细讨论。
+
+\subsection*{图表示法}
+
+对于一个矩阵$A=(a_{ij})\in\mathbb{R}^{n \times n}$，其图表示法可以使用两个集合来定义：
+
+- 顶点的集合（$V$）：（$V=\{v_1,v_2,\cdots,v_n\}$）
+
+- 边的集合（$E$）：由顶点对$(v_i,v_j)$构成，且$E\subseteq V\times V$
+
+indent 稀疏矩阵的[label]邻接图[/label]定义为$G=(V,E)$，其中$V$中的$n$个顶点代表了$n$个未知量；若$a_{ij} \neq 0$，则表示两个顶点$i$和$j$有边相连。特别地，对于[label]对称矩阵[/label]，即满足$a_{ij}$和$a_{ji}$同时不为$0$时，其邻接图是一个[label]无向图[/label]，图中的边由[label]无向边[/label]所表示。邻接图表示法对于和下文的行列重排技术有着紧密的联系。
+
+\subsection*{行列重排}
+
+\subsubsection*{矩阵的行列重排}
+
+对于一个$n \times n$阶矩阵$A=(a_{ij})$，用$a_{i*}$表示$A$的第$i$行；用$a_{*j}$表示$A$的第$j$行。定义一个排列$\pi=\{k_1,k_2,\cdots,k_n\}$，它是集合$\{1,2,\cdots,n\}$的一个排列，并将：
+
+\begin{eqnarray*}
+& A_{\pi,\ast}&=\{a_{\pi(i),j}\}_{i=1,\cdots,n;j=1,\cdots,n} \\
+& A_{\ast,\pi}&=\{a_{i,\pi(j)}\}_{i=1,\cdots,n;j=1,\cdots,n} \\
+\end{eqnarray*}
+
+indent 分别定义为矩阵$A$的[label]行-$\pi$重排[/label]和[label]列-$\pi$重排[/label]。此外，定义[label]排列矩阵[/label]$X_{ij}$，它是交换[label]单位矩阵[/label]第$i$行和第$j$行后的结果，而为了实现交换矩阵$A$的第$i$行和第$j$行，只需将其左乘$X_{ij}$即可。进而，排列$\pi=\{k_1,k_2,\cdots,k_n\}$相当于连续$n$次[label]行交换[/label]$\sigma(i_k,j_k),k=1,\cdots,n$后相乘的结果；类似地，矩阵$A$右乘$X_{ij}$可以实现第$i$列和第$j$列的[label]列交换[/label]。于是，行-$\pi$重排和列-$\pi$重排也可以表示为如下形式：
+
+\begin{eqnarray}
+& A_{\pi,\ast} = P_\pi A,\quad P_\pi=X_{i_n,j_n}X_{i_{n-1},j_{n-1}}\cdots X_{i_1,j_1} \label{eq:row}\\
+& A_{\ast,\pi} = AQ_\pi,\quad Q_\pi=X_{i_1,j_1}X_{i_2,j_2}\cdots X_{i_n,j_n} \label{eq:col}
+\end{eqnarray}
+
+indent 其中，行交换矩阵的乘积$P_\pi$和列交换矩阵的乘积$Q_\pi$统称为[label]排列矩阵[/label]。需要注意的是，式（\ref{eq:row}）和式（\ref{eq:col}）对矩阵$A$的行列交换使用了B同一种重排，所以仔细观察$X_{ij}$的话可以发现：$X^2_{ij}=I$，也就是说一个行交换或者列交换矩阵的[label]逆矩阵[/label]是它自己B本身；另一方面，$X_{ij}$本身是B对称的，于是可以推得：
+
+\begin{eqnarray*}
+& P_\pi Q_\pi = X_{i_n,j_n}X_{i_{n-1},j_{n-1}}\cdots X_{i_1,j_1} \times X_{i_1,j_1}X_{i_2,j_2}\cdots X_{i_n,j_n}=I \\
+& P^T_{\pi}=X^T_{i_1,j_1}X^T_{i_2,j_2}\cdots X^T_{i_n,j_n}=X_{i_1,j_1}X_{i_2,j_2}\cdots X_{i_n,j_n}=Q_\pi \\
+& \Longrightarrow Q_\pi=P^{-1}_\pi=P^T_\pi
+\end{eqnarray*}
+
+indent 也就是说，排列矩阵是[lable]酉矩阵[/label]，其转置矩阵和逆矩阵相等（见数值计算中的重要矩阵概念一文）。所以说，如果使用同一种重排对矩阵$A$进行行交换和列交换，相当于执行了一次[label]相似变换[/label]（$P_\pi AP_\pi^T$）。
+
+\subsubsection*{线性方程组的行列重排}
+
+如果矩阵$A$处于[label]线性方程组[/label]$A\boldsymbol{x}=\boldsymbol{b}$中，则对矩阵$A$的行-$\pi$重排需要同样作用于[label]常数向量[/label]$\boldsymbol{b}$之上；而对矩阵$A$的列-$\pi$重排则需要同样作用于[label]未知数向量[/label]$\boldsymbol{x}$之上，以保证线性方程组的B一致性。以一个$4 \times 4$阶矩阵$A$为例，设排列$\pi=\{1,3,2,4\}$，若其作为行-$\pi$重排时，常数向量$\boldsymbol{b}$也重排为$(b_1,b_3,b_2,b_4)^T$；若其作为列-$\pi$重排时，未知数向量$\boldsymbol{x}$需重排为$(x_1,x_3,x_2,x_4)^T$：
+
+\begin{equation}
+\label{eq:axb}
+A\boldsymbol{x}=\boldsymbol{b} \Longleftrightarrow
+\begin{pmatrix}
+a_{11} & 0 & a_{13} & 0 \\
+0 & a_{22} & a_{23} & a_{24} \\
+a_{31} & a_{32} & a_{33} & 0 \\
+0 & a_{42} & 0 & a_{44}
+\end{pmatrix}
+\begin{pmatrix}x_1 \\ x_2 \\ x_3 \\ x_4\end{pmatrix}=
+\begin{pmatrix}b_1 \\ b_2 \\ b_3 \\ b_4\end{pmatrix}
+\end{equation}
+\begin{equation*}
+P_\pi A\boldsymbol{x}=
+\begin{pmatrix}
+1 & 0 & 0 & 0 \\
+0 & 0 & 1 & 0 \\
+0 & 1 & 0 & 0 \\
+0 & 0 & 0 & 1 \\
+\end{pmatrix}
+\begin{pmatrix}
+a_{11} & 0 & a_{13} & 0 \\
+0 & a_{22} & a_{23} & a_{24} \\
+a_{31} & a_{32} & a_{33} & 0 \\
+0 & a_{42} & 0 & a_{44}
+\end{pmatrix}
+\begin{pmatrix}x_1 \\ x_2 \\ x_3 \\ x_4\end{pmatrix}=
+\begin{pmatrix}
+a_{11} & 0 & a_{13} & 0 \\
+a_{31} & a_{32} & a_{33} & 0 \\
+0 & a_{22} & a_{23} & a_{24} \\
+0 & a_{42} & 0 & a_{44}
+\end{pmatrix}
+\begin{pmatrix}x_1 \\ x_2 \\ x_3 \\ x_4\end{pmatrix}=
+\begin{pmatrix}b_1 \\ b_3 \\ b_2 \\ b_4\end{pmatrix}
+\end{equation*}
+
+更常见的情况是既有行重排，也有列重排，也称之为[label]双边重排[/label]，则未知数向量和常数向量都要做相应地重排。如果像式（\ref{eq:row}）和式（\ref{eq:col}）那样，行重排$P_\pi$和列重排$Q_\pi$使用同一种排列$\pi$，则称之为[label]对称重排[/label]，并记为$A_{\pi,\pi}$，且其满足：
+
+\[A_{\pi,\pi}=P_\pi A P^T_\pi\]
+
+\subsection*{行列重排和邻接图的关系}
+
+线性方程组的行列重排相当于重新标记其邻接图的顶点编号，而不改变边，即：若$(i,j)$代表原矩阵$A$邻接图中的一条边，其行列重排后的矩阵为$A'$，则有$a'_{ij}=a_{\pi(i),\pi(j)}$，其中$(i,j)$是$A'$邻接图中的一条边。换言之，就是用新标号$i$来代替原标号$\pi(i)$。以式（\ref{eq:axb}）中的线性方程组为例，令排列$\pi=\{1,3,2,4\}$，则经过行列重排后得到矩阵$A'$：
+
+\[
+A'=PAP^T=
+\begin{pmatrix}
+a_{11} & a_{13} & 0 & 0 \\
+a_{31} & a_{33} & a_{32} & 0 \\
+0 & a_{23} & a_{22} & a_{24} \\
+0 & 0 & a_{42} & a_{44}
+\end{pmatrix}
+\]
+
+indent 令$i=3,j=4$，可以验证：$a'_{ij}=a'_{34}=a_{\pi(i),\pi(j)}=a_{\pi(3),\pi(4)}=a_{24}$。因此，矩阵行列重排后其邻接图并没有改变，改变的只是顶点的编号。
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

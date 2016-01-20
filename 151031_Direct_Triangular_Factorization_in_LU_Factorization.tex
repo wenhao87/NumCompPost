@@ -1,0 +1,119 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{algorithm2e}
+
+\begin{document}
+
+\section*{LU分解的直接三角法}
+
+此前三篇文章（见BLAS三个级别的列主元Gauss消去法、完全主元的Gauss消去法、不选主元的Gauss消去法）都是利用[label]Gauss消去法[/label]通过[label]初等行变换[/label]将矩阵变为了[label]上三角矩阵[/label]，从而实现了矩阵的LU分解：$A=LU$。但其实这种分解也可以从B方程的角度进行直接求解，也就是所谓的[label]直接三角分解[/label]。同样，考虑以下三种情形：[label]不选主元[/label]、[label]完全主元[/label]和[label]列主元[/label]直接三角分解。
+
+\subsection*{不选主元的三角分解}
+
+设$n \times n$阶矩阵$A$[label]非奇异[/label]，并有分解$A=LU$，其中$L$为[label]单位下三角矩阵[/label]，$U$为上三角矩阵，即：
+
+\begin{align*}
+A &= 
+\begin{pmatrix}a_{11}&a_{12}&a_{13}&\cdots&a_{1n}\\a_{21}&a_{22}&a_{23}&\cdots&a_{2n}\\a_{31}&a_{32}&a_{33}&\cdots&a_{3n}\\\vdots&\vdots&\vdots&\cdots&\vdots\\a_{n1}&a_{n2}&a_{n3}&\cdots&a_{nn}\end{pmatrix} \\
+ &=
+\begin{pmatrix}1&&&\\l_{21}&1&&&\\l_{31}&l_{32}&1&&\\\vdots&\vdots&\vdots&\ddots&\\l_{n1}&l_{n2}&\cdots&\cdots&1\end{pmatrix}
+\begin{pmatrix}u_{11}&u_{12}&u_{13}&\cdots&u_{1n}\\&u_{22}&u_{23}&\cdots&u_{2n}\\&&u_{33}&\cdots&u_{3n}\\&&&\ddots&\vdots\\&&&&u_{nn}\end{pmatrix}=LU
+\end{align*}
+
+由此，可以得到$L$和$U$的计算顺序如下：
+
+\begin{align*}
+(u_{11},u_{12},\cdots,u_{1n}) &= (a_{11},a_{12}\cdots,a_{1n}) \\
+(l_{21},l_{31},\cdots,l_{n1}) &= (a_{21},a_{31}\cdots,a_{n1})/u_{11} \\
+(u_{22},u_{23},\cdots,u_{2n}) &= (a_{22}-l_{21}u_{12},a_{23}-l_{21}u_{13}\cdots,a_{2n}-l_{21}u_{1n}) \\
+(l_{32},l_{42},\cdots,l_{n2}) &= (a_{32}-l_{31}u_{12},a_{42}-l_{41}u_{12},\cdots,a_{n2}-l_{n1}u_{12})/u_{22} \\
+\cdots &= \cdots
+\end{align*}
+
+一行$U$和一列$L$相继计算，直到求得整个$L$和$U$。该算法也称为[label]Doolittle算法[/label]，相应的分解也称为Doolittle分解。计算完成后，$A$的下三角矩阵和上三角矩阵（包括对角线）分别存放$L$和$U$。
+
+需要注意的是，由于该解法B不选主元，所以仅当$u_{ii} \neq 0$时才可以进行（$i=1,2,\cdots,n$）。若$A$的各阶顺序主子式均不为$0$，上述算法B理论上可行，因为如果$u_{ii}$绝对值很小时，会产生很大的[label]舍入误差[/label]。
+
+\subsection*{列主元的三角分解}
+
+如前所述，不选主元的直接三角分解法中，当$u_{ii}=0$时计算中断，或者绝对值很小的话，舍入误差很大。下面给出[label]列主元的三角分解[/label]：$PA=LU$，其中$P$为行交换矩阵。设完成第$k-1$步后，矩阵形式如下：
+
+\[
+\begin{pmatrix}
+u_{11} & u_{12} & \cdots & u_{1,k-1} & u_{1k} & \cdots & u_{1n} \\
+l_{21} & u_{22} & \cdots & u_{2,k-1} & u_{2k} & \cdots & u_{2n} \\
+\vdots & \vdots & & \vdots & \vdots & & \vdots \\
+l_{k-1,1} & l_{k-1,2} & \cdots & u_{k-1,k-1} & u_{k-1,k} & \cdots & u_{k-1,n} \\
+\cline{5-7}
+l_{k1} & l_{k2} & \cdots & l_{k,k-1} & \multicolumn{1}{|c|}{\multirow{1}{*}{$a_{kk}$}} & \cdots & a_{kn} \\
+\vdots & \vdots & & \vdots & \multicolumn{1}{|c|}{\multirow{1}{*}{\vdots}} & & \vdots \\
+l_{i1} & l_{i2} & \cdots & l_{i,k-1} & \multicolumn{1}{|c|}{\multirow{1}{*}{$\boldsymbol{a_{ik}}$}} & \cdots & a_{in} \\
+\vdots & \vdots & & \vdots & \multicolumn{1}{|c|}{\multirow{1}{*}{\vdots}} & & \vdots \\
+l_{n1} & l_{n2} & \cdots & l_{n,k-1} & \multicolumn{1}{|c|}{\multirow{1}{*}{$a_{nk}$}} & \cdots & a_{nn} \\
+\end{pmatrix}
+\]
+
+为了进行列主元交换，按下式取绝对值最大者：
+
+\begin{equation}
+\label{eq:si}
+s_i=a_{ik}-\sum_{t=1}^{k-1}l_{it}u_{tk},\quad i=k,k+1,\cdots,n
+\end{equation}
+
+\begin{equation}
+\label{eq:sk}
+|s_{i_k}|=\max_{k \leq i \leq n}|s_i|,\quad k \leq i_k \leq n
+\end{equation}
+
+indent然后将B整个矩阵的第$k$行和第$i_k$行交换，从而保证$|l_{ik}|=|s_i/s_k|\leq 1$，其中$i=k+1,k+2,\cdots,n)$。这样，当进行第$k$步分解时，有：
+
+\begin{equation}
+\label{eq:uandl}
+\begin{cases}
+u_{kk} &= s_{k},\quad u_{ki} = a_{ki}-\sum_{t=1}^{k-1}l_{kt}u_{ti} \\
+l_{ik} &= s_i/s_k
+\end{cases}
+\quad i=k+1,k+2,\cdots,n
+\end{equation}
+
+简单来说，列主元直接三角分解先有式（\ref{eq:si}、\ref{eq:sk}）确定所需交换的行，然后根据式（\ref{eq:uandl}）产生$U$的一行和$L$的一列。
+
+[alert type="info"]需要注意的是，[label]列主元Gauss消去法[/label]每一步不仅要计算相应$U$的某一行和$L$的某一列，同时还需要更新右下角的子矩阵；而[label]列主元直接三角分解[/label]则不需要进行这样的更新。所以，列主元直接三角分解也是一种“[label]需求驱动[/label]”的算法。但两种方法的计算量是B完全相同的。[/alert]
+
+\subsection*{完全主元的三角分解}
+
+[label]完全主元的三角分解[/label]和上述的[label]列主元的三角分解[/label]类似，只需要改变取绝对最大值时的计算方式即可，即将式（\ref{eq:si}、\ref{eq:sk}）改为：
+
+\begin{equation}
+\label{eq:sij}
+s_{ij}=a_{ij}-\sum_{t=1}^{k-1}l_{it}u_{tj},\quad i,j=k,k+1,\cdots,n
+\end{equation}
+
+\[
+|s_{pq}|=\max_{k\leq i,j \leq n}|s_{ij}|,\quad k\leq p,q \leq n
+\]
+
+之后交换整个矩阵的第$k$行和第$p$行，第$k$列和第$q$列即可。而更新$L$和$U$的过程也和式（\ref{eq:uandl}）类似，但需稍加改变如下：
+
+\[
+u_{kk}=s_{kk},\quad u_{ki}=s_{ki},\quad l_{ik}=s_i/s_k,\quad i=k+1,k+2,\cdots,n
+\]
+
+需要注意的是，分析式（\ref{eq:sij}），即第$k$步完全选主元的过程，每一个$s_{ij}$的计算量为$k-1$次乘法，而子矩阵中共有$(n-k+1)^2$个元素需要计算，所以，整个完全主元的三角分解计算量为：
+
+\[
+\sum_{k=1}^{n-1}(n-k+1)^2(k-1)
+\]
+
+[alert type="error"]注意：完全主元的直接三角分解法比完全主元的Gauss消去法的乘法次数要高一个数量级。原因在于计算的$(n-k+1)^2$个$s_{ij}$没有在下一步得到充分利用。[/alert]
+
+\end{document}

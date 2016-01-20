@@ -1,0 +1,378 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{带状矩阵的直接三角分解}
+
+上文（见对称（正定）矩阵的直接三角分解一文）讨论了一类特殊矩阵——[label]对称（正定）矩阵[/label]的[label]直接三角分解法[/label]，本文将针对另一类特殊矩阵——[label]带状矩阵[/label]，给出其直接三角分解法。
+
+\subsection*{带状矩阵的定义和重要定理}
+
+如果矩阵的非零元集中在对角线附近，则称为[label]带状矩阵[/label]。对于$n \times n$阶矩阵$A$，若$a_{ij}=0,j>i+r$，则称$A$的[label]上带宽[/label]为$r$；若$a_{ij}=0,i>j+s$，则称$A$的[label]下带宽[/label]为$s$；若以上两条同时满足，则称$r+s+1$为$A$的[label]带宽[/label]。
+
+[alert type="info"]对于一般$m \times n$阶矩阵$A$，称$w=\displaystyle{\max_{1\leq i \leq m}\{j-k+1:a_{ij}a_{ik}\neq 0\}}$为$A$的带宽。[/alert]
+
+带状矩阵具有以下两个重要性质：
+
+若$A,B\in\mathbb{R}^{n \times n}$分别有下（上）带宽$r$和下（上）带宽$s$，则它们的乘积$AB$有下（上）带宽$r+s$。（证略）
+
+设$A\in\mathbb{R}^{n \times n}$为上带宽$r$、下带宽$s$的带状矩阵，对$A$进行LU分解得到$A=LU$，其中$L$为单位下三角矩阵，$U$为上三角矩阵，则$U$的上带宽$r$，$L$的下带宽为$s$。（证略）
+
+\begin{align*}
+a_{ij}=\sum_{k=1}^nl_{ik}u_{kj}&=\sum_{k=1}^{i-1}l_{ik}u_{kj}+u_{ij},\quad i \leq j\\
+&=\sum_{k=1}^{j}l_{ik}u_{kj},\quad i \geq j
+\end{align*}
+
+\[
+\begin{pmatrix}
+1 & & & & & & & & \\
+\vdots & \ddots & & & & & & & \\
+\vdots & & \ddots & & & & & & \\
+\cline{1-4}
+l_{i1} & & & \multicolumn{1}{|c|}{1} & & & & & \\
+\cline{1-4}
+\vdots & & & & \ddots & & & & \\
+l_{s1} & & & & & 1 & & & \\
+& \ddots & & & & & \ddots & \\
+& & \ddots & & & & & \ddots & \\
+& & & l_{n,n-s+1} & \cdots & l_{n,n-i+1} & \cdots & \cdots & 1 \\
+\end{pmatrix}
+\begin{pmatrix}
+\cline{4-4}
+u_{11} & \cdots & \cdots & \multicolumn{1}{|c|}{u_{1j}} & \cdots & u_{1r} & & & \\
+& \ddots & & \multicolumn{1}{|c|}{} & & & \ddots & & \\
+& & \ddots & \multicolumn{1}{|c|}{} & & & & \ddots &\\
+\cline{4-4}
+& & & \multicolumn{1}{|c|}{u_{jj}} & & & & & u_{n-r+1,n} \\
+\cline{4-4}
+& & & & \ddots & & & & \vdots \\
+& & & & & u_{rr} & & & u_{n-j+1,n}\\
+& & & & & & \ddots & & \vdots \\
+& & & & & & & \ddots & \vdots \\
+& & &  & & & & & u_{nn} \\
+\end{pmatrix}
+\]
+
+\subsection*{特殊带状矩阵的逆矩阵直接分解法}
+
+有两类特殊的带状矩阵：[label]Hessenberg矩阵[/label]和[label]对称三对角矩阵[/label]。若$n \times n$阶矩阵$H$满足：$h_{ij}=0$，其中$1 \leq j<i-1 \leq n$，则称其为[label]上Hessenberg矩阵[/label]，类似的也有[label]下Hessenberg矩阵[/label]（见Hessenberg矩阵详解一文）。
+
+[alert type="error"]注意：带状矩阵的逆矩阵一般不是带状矩阵。[/alert]
+
+若$H$满足$h_{j+1,j} \neq 0$，其中$j=1,2,\cdots,n-1$，则$H$[label]非奇异[/label]，且存在两个$n$维向量$\boldsymbol{p}=(p_i)\in\mathbb{R}^{n}$和$\boldsymbol{q}=(q_i)\in\mathbb{R}^{n}$，使得其逆矩阵满足：
+
+\[
+(H^{-1})_{ij}=p_iq_j,\quad i \geq j
+\]
+
+更进一步，若$H$为[label]次对角线[/label]非零的[label]对称三对角矩阵[/label]，由于$H^{-1}$也是对称矩阵，则有：
+
+\[
+(H^{-1})_{ij}=
+\begin{cases}
+p_iq_j,&\quad i \geq j\\
+p_jq_i,&\quad i < j\\
+\end{cases}
+\]
+
+写成矩阵形式如下：
+
+\[
+H=
+\begin{pmatrix}
+\alpha_1 & \beta_2 & & & &\\
+\cline{1-3}
+\beta_2 & \alpha_2 & \multicolumn{1}{c|}{\multirow{1}{*}{$\beta_3$}} & & &\\
+\cline{1-3}
+& \beta_3 & \alpha_3 & \beta_4 & & \\
+& & \ddots & \ddots & \ddots & \\
+& & & \beta_{n-1} & \alpha_{n-1} & \beta_n \\
+& & & & \beta_n & \alpha_n
+\end{pmatrix},\quad
+H^{-1}=
+\begin{pmatrix}
+\cline{3-3}
+p_1q_1 & p_2q_1 & \multicolumn{1}{|c|}{\multirow{1}{*}{$p_3q_1$}} & \cdots & \cdots & p_nq_1 \\
+\vdots & p_2q_2 & \multicolumn{1}{|c|}{\multirow{1}{*}{$p_3q_2$}} & \cdots & \cdots & p_{n}q_2 \\
+\vdots & \vdots & \multicolumn{1}{|c|}{\multirow{1}{*}{$p_3q_3$}} & \cdots & \cdots & p_{n}q_3 \\
+\cline{3-3}
+\vdots & \vdots & \vdots & \ddots & \vdots & \vdots \\
+\vdots & \vdots & \cdots & \cdots & \ddots & \vdots \\
+\vdots & \cdots & \cdots & \cdots & \cdots & p_nq_n
+\end{pmatrix}
+\]
+
+利用$HH^{-1}=I$及其次对角线为$0$的特点，从上式可以推得：
+
+\begin{align*}
+\begin{pmatrix}\beta_i & \alpha_i & \beta_{i+1} \end{pmatrix}
+\begin{pmatrix}p_{i+1}q_{i-1} \\ p_{i+1}q_{i} \\ p_{i+1}q_{i+1}\end{pmatrix}=0
+&\Longrightarrow \beta_iq_{i-1}+\alpha_iq_i+\beta_{i+1}q_{i+1}=0 \\
+&\Longrightarrow q_{i+1}=-\dfrac{1}{\beta_{i+1}}(\beta_iq_{i-1}+\alpha_iq_i),\quad i=2,3,\cdots,n-1
+\end{align*}
+
+indent 这里令$q_1=1$，显然有$q_2=-\alpha_1/\beta_2$，则利用上式，可以迭代计算得到$q_i$。同样，利用$H^{-1}H=I$及其次对角线为$0$的特点，可以逆序计算求得$p_i$：
+
+\begin{align*}
+\begin{pmatrix}p_iq_i & p_{i+1}q_i & p_{i+2}q_i \end{pmatrix}
+\begin{pmatrix}\beta_{i+1} \\ \alpha_{i+1} \\ \beta_{i+2}\end{pmatrix}=0
+&\Longrightarrow \beta_{i+1}p_i+\alpha_{i+1}p_{i+1}+\beta_{i+2}p_{i+2}=0 \\
+&\Longrightarrow p_{i}=-\dfrac{1}{\beta_{i+1}}(\alpha_{i+1}p_{i+1}+\beta_{i+2}p_{i+2}),\quad i=n-2,n-3,\cdots,1
+\end{align*}
+
+indent 其中$p_n=1/(\beta_nq_{n-1}+\alpha_nq_n)$，$p_{n-1}=-\alpha_np_n/\beta_n$。
+
+
+\subsection*{带状矩阵的Gauss消去法}
+
+\subsubsection*{Gauss消去法算法实现}
+
+与BLAS三个级别的列主元Gauss消去法一文中提出的算法类似，只需更改一下循环上界，即可得到带状矩阵的Gauss消去法。设$A\in\mathbb{R}^{n \times n}$为上带宽$r$、下带宽$s$的带状矩阵，其Gauss消去法算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+\TitleOfAlgo{Gaussian Elimination on Banded Matrix}
+\begin{algorithm}[H]
+\For{$k\gets 1$ \KwTo $n-1$}{
+	\For{$i\gets k+1$ \KwTo $\min\{k+s,n\}$}{
+		$a_{ik}\gets a_{ik}/a_{kk}$\;
+		\For{$j\gets k+1$ \KwTo $\min\{k+r,n\}$}{
+			$a_{ij}\gets a_{ij}-a_{ik}a_{kj}$\;
+		}
+	}
+}
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{算法计算量分析}
+
+分析上述算法，可以计算出其所需要的乘法次数为：
+
+\begin{align*}
+\label{eq:sum}
+\sum_{k=1}^{n-1}\sum_{i=k+1}^{\min\{k+s,n\}}\sum_{j=k+1}^{\min\{k+r,n\}}1&=
+\sum_{k=1}^{n-r-1}\sum_{i=k+1}^{\min\{k+s,n\}}\sum_{j=k+1}^{\min\{k+r,n\}}1+
+\sum_{k=n-r}^{n-1}\sum_{i=k+1}^{\min\{k+s,n\}}\sum_{j=k+1}^{\min\{k+r,n\}}1 \\
+&=\sum_{k=1}^{n-r-1}\sum_{i=k+1}^{\min\{k+s,n\}}\sum_{j=k+1}^{k+r}1+
+\sum_{k=n-r}^{n-1}\sum_{i=k+1}^{\min\{k+s,n\}}\sum_{j=k+1}^{n}1 \\
+&=\sum_{k=1}^{n-r-1}\sum_{i=k+1}^{\min\{k+s,n\}}r+
+\sum_{k=n-r}^{n-1}\sum_{i=k+1}^{\min\{k+s,n\}}(n-k) \\
+\end{align*}
+
+若$r \leq s$：
+
+\begin{align*}
+\sum_{k=1}^{n-r-1}\sum_{i=k+1}^{\min\{k+s,n\}}r&=\sum_{k=1}^{n-s-1}\sum_{i=k+1}^{k+s}r+\sum_{k=n-s}^{n-r-1}\sum_{i=k+1}^{n}r=r\left[s(n-s-1)+\dfrac{(s-r)(s+r+1)}{2}\right]\\
+\sum_{k=n-r}^{n-1}\sum_{i=k+1}^{\min\{k+s,n\}}(n-k)&=
+\sum_{k=n-r}^{n-1}\sum_{i=k+1}^{n}(n-k)=\sum_{k=n-r}^{n-1}(n-k)^2=
+\dfrac{r(r+1)(2r+1)}{6}
+\end{align*}
+
+上两式相加，即得总的乘法次数为：
+
+\begin{equation}
+\label{eq:rleqs}
+r\left[s(n-s-1)+\dfrac{(s-r)(s+r+1)}{2}\right]+\dfrac{r(r+1)(2r+1)}{6}=
+r\left[sn-\dfrac{s^2}{2}-\dfrac{r^2}{2}-\dfrac{s}{2}+\dfrac{1}{6}\right]
+\end{equation}
+
+类似地，当$s\leq r$时，其总的乘法次数为：
+
+\begin{equation}
+\label{eq:sleqr}
+s\left[r(n-r-1)+\dfrac{(r+s)(r-s+1)}{2}\right]+\dfrac{s(s-1)(2s-1)}{6}=
+s\left[rn-\dfrac{r^2}{2}-\dfrac{s^2}{2}-\dfrac{r}{2}+\dfrac{1}{6}\right]
+\end{equation}
+
+可以发现，式（\ref{eq:sleqr}）正好是式（\ref{eq:rleqs}）中的$r$和$s$互换得到的。特别地，其所需乘法次数为：
+
+\[
+\begin{cases}
+r\left[rn-\dfrac{2r^2}{3}-\dfrac{s}{2}+\dfrac{1}{6}\right],&r=s\\
+\dfrac{n(n-1)(2n-1)}{6},&r=s=n-1
+\end{cases}
+\]
+
+其中，$r=s=n-1$的情况，就是满矩阵Gauss消元法的乘法次数。
+
+
+[alert type="info"]对于带状矩阵，如果使用[label]不选主元的Gauss消去法[/label]（见不选主元的Gauss消去法一文），所产生的下三角矩阵和上三角矩阵的非零元也在对角线附近。换言之，Gauss消去法具有[label]保带宽性[/label]。[/alert]
+
+\subsection*{带状系数矩阵线性方程组的并行求解}
+
+对于线性方程组$A\boldsymbol{x}=\boldsymbol{b}$，若[label]系数矩阵[/label]$A$为带状矩阵，则可以使用如下的并行求解方法。假设有$2$个进程，$n \times n$阶矩阵$A$的带宽为$w$，则可以先对系数矩阵$A$进行如下分块：
+
+【图片】
+
+indent 其中，$A_1\in\mathbb{R}^{m_1\times n_1}$，$B_1\in\mathbb{R}^{m_1\times w}$，$A_2\in\mathbb{R}^{m_2\times n_2}$，$C_2\in\mathbb{R}^{m_2\times w}$，且$n=n_1+w+n_2$。于是线性方程组$A\boldsymbol{x}=\boldsymbol{b}$可以表示为：
+
+\begin{equation}
+\label{eq:b12}
+\begin{pmatrix}
+A_1 & B_1 & \\
+& C_2 & A_2
+\end{pmatrix}
+\begin{pmatrix}
+\boldsymbol{x}' \\
+\boldsymbol{\xi} \\
+\boldsymbol{x}''
+\end{pmatrix}=
+\begin{pmatrix}
+\boldsymbol{b}_1 \\
+\boldsymbol{b}_2
+\end{pmatrix},\quad
+\boldsymbol{x}'\in\mathbb{R}^{n_1},\quad\boldsymbol{\xi}\in\mathbb{R}^{w},\quad\boldsymbol{x}''\in\mathbb{R}^{n_2}
+\end{equation}
+
+\begin{equation}
+\label{eq:b1b2}
+\begin{pmatrix}
+A_1 & B_1
+\end{pmatrix}
+\begin{pmatrix}
+\boldsymbol{x}' \\
+\boldsymbol{\xi}
+\end{pmatrix}=\boldsymbol{b}_1,\quad
+\begin{pmatrix}
+C_2 & A_2
+\end{pmatrix}
+\begin{pmatrix}
+\boldsymbol{\tilde{\xi}} \\
+\boldsymbol{x}''
+\end{pmatrix}=\boldsymbol{b}_2
+\end{equation}
+
+indent 所以，当$\boldsymbol{\xi}=\boldsymbol{\tilde{\xi}}$时，式（\ref{eq:b1b2}）的解就是方程组（\ref{eq:b12}）的解。如果令$E_1=\left(A_1,B_2\right)$，$E_2=\left(C_2,A_2\right)$，则方程组（\ref{eq:b1b2}）的解可以表示为一个[label]特解[/label]与扩张成[label]零空间[/label]$N(E_i)$（$E_{i}\boldsymbol{x}_i=0$）的一组[label]标准正交基[/label]之和，即$\boldsymbol{x}_i=\boldsymbol{p}_{i}+Q_i\boldsymbol{y}_i$，其中，特解$\boldsymbol{p}_i\in\mathbb{R}^{n_i+w}$（$i=1,2$），$Q_i\in\mathbb{R}^{(n_i+w)\times(n_i+w-m_i)}$，$\boldsymbol{y}_i\in\mathbb{R}^{n_i+w-m_i}$。对$\boldsymbol{x}_i$继续分块，可以得到：
+
+\begin{equation}
+\label{eq:y1y2}
+\begin{pmatrix}
+\multicolumn{1}{c}{\multirow{2}{*}{$\boldsymbol{x}_1$}}\\
+\\
+\end{pmatrix}=
+\begin{pmatrix}
+\boldsymbol{x}'\\
+\boldsymbol{\xi}
+\end{pmatrix}=
+\begin{pmatrix}
+\boldsymbol{p}_{1,1}\\
+\boldsymbol{p}_{1,2}
+\end{pmatrix}+
+\begin{pmatrix}
+\boldsymbol{Q}_{1,1}\\
+\boldsymbol{Q}_{1,2}
+\end{pmatrix}\boldsymbol{y}_1,\quad
+\begin{pmatrix}
+\multicolumn{1}{c}{\multirow{2}{*}{$\boldsymbol{x}_2$}}\\
+\\
+\end{pmatrix}=
+\begin{pmatrix}
+\boldsymbol{\tilde{\xi}}\\
+\boldsymbol{x}''
+\end{pmatrix}=
+\begin{pmatrix}
+\boldsymbol{p}_{2,1}\\
+\boldsymbol{p}_{2,2}
+\end{pmatrix}+
+\begin{pmatrix}
+\boldsymbol{Q}_{2,1}\\
+\boldsymbol{Q}_{2,2}
+\end{pmatrix}\boldsymbol{y}_2
+\end{equation}
+
+indent 其中，$\boldsymbol{y}_i\in\mathbb{R}^{n_i+w-m_i}$，$\boldsymbol{p}_i=(\boldsymbol{p}_{i,1}^T,\boldsymbol{p}_{i,2}^T)$，$Q_i=(Q_{i,1}^T,Q_{i,2}^T)$（$i=1,2$）。为了满足$\boldsymbol{\xi}=\boldsymbol{\tilde{\xi}}$，必须有：
+
+\begin{align}
+\label{eq:myg}
+&\quad\boldsymbol{p}_{1,2}+Q_{1,2}\boldsymbol{y}_1=\boldsymbol{p}_{2,1}+Q_{2,1}\boldsymbol{y}_2 \nonumber\\
+\Longleftrightarrow &\quad Q_{1,2}\boldsymbol{y}_1-Q_{2,1}\boldsymbol{y}_2=\boldsymbol{p}_{2,1}-\boldsymbol{p}_{1,2} \nonumber\\
+\Longleftrightarrow &\quad
+\begin{pmatrix}Q_{1,2}&-Q_{2,1}\end{pmatrix}\begin{pmatrix}\boldsymbol{y}_1\nonumber\\\boldsymbol{y}_2\end{pmatrix}=\boldsymbol{p}_{2,1}-\boldsymbol{p}_{1,2} \nonumber\\
+\Longleftrightarrow &\quad M\boldsymbol{y}=\boldsymbol{g}
+\end{align}
+
+indent 其中，$M=(Q_{1,2},-Q_{2,1})\in\mathbb{R}^{w \times w}$，$\boldsymbol{y}=(\boldsymbol{y}_1^T,\boldsymbol{y}_2^T)^T\in\mathbb{R}^{w}$，$\boldsymbol{g}=\boldsymbol{p}_{2,1}-\boldsymbol{p}_{1,2}\in\mathbb{R}^{w}$。
+
+\subsubsection*{带状系数矩阵的并行求解算法}
+
+给定线性方程组$A\boldsymbol{x}=\boldsymbol{b}$，其中$A$为带状矩阵，其并行求解算法实现如下（假设进程数为$2$）：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+\TitleOfAlgo{Solve Banded Linear System in Paralle}
+\begin{algorithm}[H]
+solve eq.(\ref{eq:b1b2}) to get $\boldsymbol{p}_i,Q_i$, where $i=1,2$\;
+solve eq.(\ref{eq:myg}) to get $\boldsymbol{y}$\;
+find $\boldsymbol{x}_1,\boldsymbol{x}_2$ and $\boldsymbol{\xi}=\boldsymbol{\tilde{\xi}}$ from eq.(\ref{eq:y1y2})\;
+%\For{$l\gets 1$ \KwTo $n-1$}{
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+\end{algorithm}
+%[/latex]
+
+显然，算法的第一步各个进程可以并行执行；第二步求解$w \times w$阶线性方程组，可用穿行方法求解，其计算量远比$n \times n$阶线性方程组的求解要少；第三步也是可以并行计算的。最后值得一提的是，这种方法也可以推广到$p$个进程的情况。
+
+% H2, H3
+\subsection*{}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+%\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+%\begin{algorithm}[H]
+%\For{$l\gets 1$ \KwTo $n-1$}{
+%$k\gets (l-1)b+1$\;
+%factorize $PA^{(l)}=LU$ using BLAS-2\;
+%store $L$ and $U$ in $A$\;
+%left multiply $A(1:n,k+b:n)$ by $P$\;
+%$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+%\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+%\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+%\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+%}
+%\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

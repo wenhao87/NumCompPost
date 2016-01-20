@@ -1,0 +1,232 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+\section*{迭代法整理（一）：基本迭代法、Krylov子空间和Arnoldi方法}
+
+%[aside_content]
+
+迭代法通常用于求解两类B大规模数值问题：1）线性方程组求解；2）特征值问题求解，即：
+
+\[
+A\boldsymbol{x}=\boldsymbol{b},\quad
+A\boldsymbol{x}=\lambda\boldsymbol{x}\quad
+A\in\mathbb{R}^{n \times n}
+\]
+
+indent其中，$n$很大（如：$n=10^9$），且通常$A$是[label]稀疏矩阵[/label]。对于线性方程组而言，希望通过$A$和$\boldsymbol{b}$求解得到$\boldsymbol{x}$，而对于特征值问题，则希望找到$\lambda$。相比[label]直接法[/label]（如：Gauss消去法（见不选主元的Gauss消去法、完全主元的Gauss消去法、BLAS三个级别的列主元Gauss消去法等文）、QR分解法（见基于Householder和Givens正交化的QR分解一文）等），迭代法的求解时间更快。对于稀疏矩阵，迭代法甚至能取得线性求解时间，即$\mathcal{O}(n)$，在一般情况下则为$\mathcal{O}(n^2)$；而直接法在矩阵是稀疏和稠密的两种情况下，求解时间分别为$\mathcal{O}(n^2)$和$\mathcal{O}(n^3)$。此外，在存储量方面，直接法B总是需要$\mathcal{O}(n^2)$的存储，而迭代法在矩阵为稀疏的情况下通常只需要$\mathcal{O}(n)$的存储（非稀疏时同样也需要$\mathcal{O}(n^2)$）。
+
+上面提到的[label]稀疏性[/label]（sparsity）通常指的是矩阵$A$的每一行最多只有$c$个非零元，且满足$c \ll n$。一般来说，如果矩阵大部分都是零元，则可以实现[label]线性时间[/label]]的矩阵向量乘。因此，迭代法的理念是在算法中以这种计算量较少的矩阵向量乘为主导，并最终得到$\boldsymbol{x}=A^{-1}\boldsymbol{b}$的一个极佳近似解。
+
+\subsection*{基本迭代法}
+
+[label]Jacobi迭代[/label]和[label]Gauss-Seidel[/label]迭代是两种最基本的迭代方法（见求解线性方程组的基本迭代法一文），但通常它们都无法得到最优的性能，一是因为它们需要较多的迭代步数，二是由于随着迭代步数的增加，迭代的结果往往会停滞不前，无法进一步接近真实解。但这两种技术在“[label]平滑[/label]”（smooth）矩阵的误差上十分有效，并主要被应用于[label]多重网格[/label]（multigrid）方法之上。
+
+基本迭代法的迭代格式可以从[label]矩阵分裂[/label]的角度推导，即：把求解线性方程组问题转换为求线性方程组的不动点问题，以此来构造迭代格式。通常，将矩阵$A$分裂为$A=M-N$，则原线性方程组等价于$M\boldsymbol{x}=N\boldsymbol{x}+b$，并构造如下迭代格式：
+
+\begin{equation*}
+\begin{aligned}
+M\boldsymbol{x}_{k+1}&=N\boldsymbol{x}_{k}+\boldsymbol{b}\\
+\Longrightarrow\quad\boldsymbol{x}_{k+1}&=B\boldsymbol{x}_{k}+\boldsymbol{f}
+\end{aligned}\quad,\quad\text{where}
+\left\{\begin{aligned}k&=0,1,\cdots\\B&=M^{-1}N\\\boldsymbol{f}&=M^{-1}\boldsymbol{b}\end{aligned}\right.
+\end{equation*}
+
+[alert type="info"]一般会将矩阵$A$分解为三个部分：$A=D+L+U$，其中$D$是矩阵$A$的对角部分，$L$和$U$则分别是$A$的严格下三角部分和严格上三角部分。[/alert]
+
+\subsubsection*{Jacobi迭代}
+
+在Jacobi迭代法中，$M=D$，$N=-(L+U)$，于是有：
+
+\begin{equation*}
+\begin{aligned}
+\boldsymbol{x}_{k+1}&=-D^{-1}(L+U)\boldsymbol{x}_k+D^{-1}\boldsymbol{b} \\
+&=D^{-1}\big(\boldsymbol{b}-(L+U)\boldsymbol{x}_k\big)=D^{-1}\big(\boldsymbol{b}-A\boldsymbol{x}_k+D\boldsymbol{x}_k\big) \\
+&=D^{-1}(\boldsymbol{r}_k+D\boldsymbol{x}_k)=D^{-1}\boldsymbol{r}_k+\boldsymbol{x}_k
+\end{aligned}
+\end{equation*}
+
+于是，Jacobi迭代法的算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Jacobi Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	\For{$i\gets 1$ \KwTo $n$}{
+		$\delta\gets r_i/a_{ii}$\;
+		$x_i\gets x_i+\delta$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+[alert type="success"]Jacobi迭代法中$\boldsymbol{x}_k$的所有分量$\{x_{i}\}_{i=1}^n$的更新可以并行执行。[/alert]
+
+\subsubsection*{Gauss-Seidel迭代}
+
+在Gauss-Seidel迭代法中，$M=D+L$，$N=-U$，于是有：
+
+\[
+(D+L)\boldsymbol{x}_{k+1}=-U\boldsymbol{x}+\boldsymbol{b}
+\quad\Longrightarrow\quad
+D\boldsymbol{x}_{k+1}=\boldsymbol{b}-L\boldsymbol{x}_{k+1}-U\boldsymbol{x}
+\]
+
+indent所以，Gauss-Seidel的迭代格式中当前分量的计算需要使用最新更新的分量，所以其算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Gauss-Seidel Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+\For{$i\gets 1$ \KwTo $n$}{
+	$\delta\gets r_i/a_{ii}$\;
+	$x_i\gets x_i+\delta$\;
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+[alert type="error"]注意：与Jacobi迭代法相比，Gauss-Seidel迭代法中每一个分量的计算都要使用最新的残差，因此各个分量的计算不是独立的，其并行性没有Jacobi迭代法好。[/alert]
+
+\subsection*{Krylov子空间和Arnoldi方法}
+
+[label]Krylov子空间法[/label]具有与问题规模$n$B无关的较少迭代步数，并且根据矩阵的特性，它还能被进一步优化。例如，当矩阵是[label]对称正定矩阵[/label]（SPD）时，对应的Krylov方法便是[label]共轭梯度[/label]（CG）方法；如果只是对称矩阵，对应的方法是[label]极小残差[/label]（MINRES）方法；更一般的情况下时，则是[label]广义极小残差法[/label]（GMRES）。无论从计算量还是存储量来说，共轭梯度（CG）方法最高效，其次是极小残差（MINRES）方法，最后则是广义极小残差法（GMRES）。这些方法都基于[label]Krylov子空间[/label]$\mathcal{K}_k$，其形式为：
+
+\[\mathcal{K}_k=\text{span}\{\boldsymbol{b},A\boldsymbol{b},A^2\boldsymbol{b},\cdots,A^{k-1}\boldsymbol{b}\}\]
+
+indent且它具有以下两个特性：1）对于任意的$\hat{k}>k$，有$\mathcal{K}_k\subset\mathcal{K}_{\hat{k}}$；2）存在$k$，使得$A^{-1}\boldsymbol{b}\in\mathcal{K}_k$。这里的第一条特性显而易见，而第二条特性的理由如下（考虑$A$为[label]满秩[/label]的情况）：构造一个以$A$为根的多项式，并且这里以[lable]可对角化矩阵[/label]$A$为例，则$A$可以表示为$A=Q\Lambda Q^{-1}$的形式，其中$\Lambda$是对角元为$\lambda_1,\cdots,\lambda_n$的[label]对角矩阵[/label]。如果令$\lambda_1,\cdots,\lambda_k$为所有B相异特征值，则$A$可以表示为以下$k$阶多项式的根：
+
+\begin{equation}
+\label{eq:mdgpoly}
+p(\lambda)=(\lambda-\lambda_1)(\lambda-\lambda_2)\cdots(\lambda-\lambda_k)=\sum_{i=0}^{k-1}b_i\lambda^i+\lambda^k
+\end{equation}
+
+indent其中，$k$便是相异特征值的个数。因为$A$是式（\ref{eq:mdgpoly}）的根，所以有：
+
+\[
+\begin{aligned}
+\sum_{i=0}^{k-1}b_iA^i+A^k &= b_0+b_1A^1+\cdots+b_{k-1}A^{k-1}+A^k=0 \\
+\Longrightarrow\quad & A^{-1}(b_0+b_1A^{1}+\cdots+b_{k-1}A^{k-1}+A^k)=0 \\
+\Longrightarrow\quad & A^{-1}=-\dfrac{1}{b_0}\left(\sum_{i=1}^{k-1}b_iA^{i-1}+A^{k-1}\right)
+\end{aligned}
+\]
+
+indent其中$b_0$是所有相异特征值的乘积，并且在满秩情况下其不为零。因此，$\boldsymbol{x}=A^{-1}\boldsymbol{b}$可以表示为：
+
+\[
+\boldsymbol{x}=A^{-1}\boldsymbol{b}=-\dfrac{1}{b_0}\left(\sum_{i=1}^{k-1}b_iA^{i-1}\boldsymbol{b}+A^{k-1}\boldsymbol{b}\right)
+\]
+
+indent换言之，$A^{-1}\boldsymbol{b}$可以表示为$\{\boldsymbol{b},A\boldsymbol{b},\cdots,A^{k-1}\boldsymbol{b}\}$的线性组合，所以说存在这样的$k$，使得$\boldsymbol{x}=A^{-1}\boldsymbol{b}\in\mathcal{K}_k$。而对于一般情况（秩亏时），利用Jordan分块也可以得到同样的结论。
+
+\subsubsection*{Krylov子空间迭代法}
+
+在求解线性方程组$A\boldsymbol{x}=\boldsymbol{b}$时，Krylov方法会在第$k$步迭代时计算得到最优（从最小二乘法角度出发）的$\boldsymbol{x}^k$。令$Q_k=(\boldsymbol{q}_1,\boldsymbol{q}_2,\cdots,\boldsymbol{q}_k)\in\mathbb{R}^{n\times k}$为$\mathcal{K}_k$的一组标准正交基，则Krylov方法的第$k$步迭代是所求解的问题可以写为如下形式：
+
+\begin{equation}
+\label{eq:argminwm}
+\boldsymbol{w}_k\in\mathbb{R}^k=\text{argmin}\|\boldsymbol{b}-AQ_k\boldsymbol{w}_k\|_2,\quad\boldsymbol{x}_k=Q_k\boldsymbol{w}_k
+\end{equation}
+
+如上所述，因为线性方程组的解一定在某个Krylov子空间内，因此式（\ref{eq:argminwm}）的迭代过程一定会终止。事实上，并不需要精确地求解该最小二乘问题，而是希望下一步的Krylov子空间能使误差尽可能减小，并且迭代过程能在一定迭代步数（前面提到的多项式的阶数）后终止。
+
+实际过程中并不是直接使用$\{\boldsymbol{b},A\boldsymbol{b},\cdots,A^{k-1}\boldsymbol{b}\}$作为基底向量，因为当$k$增大时，$A^k\boldsymbol{b}$会变得十分病态，从而造成基底的线性相关。取而代之的方法是生成一组[label]正交向量[/label]作为Krylov子空间$\mathcal{K}_k$的基底向量，这个过程便称为[label]Arnoldi方法[/label]，并且它一般基于[label]改进的Gram-Schmidt正交化[/label]方法。
+
+\subsubsection*{Arnoldi方法}
+
+Arnoldi迭代方法在计算Krylov子空间$\mathcal{K}_k$的正交基底向量$Q_k$过程中，利用了前面提到的Krylov子空间的一个特性，即：$\mathcal{K}_k\subset\mathcal{K}_{k+1}\subset\mathcal{K}_{k+2}$。因而在构造下一组标准正交基底向量时，其实只需要计算一个新的$\boldsymbol{q}_{k+1}$向量即可，从而有：$Q_{k+1}=(Q_k,\boldsymbol{q}_{k+1})$。显然，最直接的方法是加入不在$\mathcal{K}_k$中的向量$A^k\boldsymbol{b}$，并利用Gram-Schmidt正交化方法将其正交化后，便能得到$\mathcal{K}_{k+1}$。但正如前面所说的，实际操作中由于$A^{k}\boldsymbol{b}$的计算量较大，且数值上具有不稳定性，所以通常不会显式计算$A^k\boldsymbol{b}$。取而代之的是，Arnoldi方法会利用向量$A\boldsymbol{q}_k$实现正交化，即：
+
+\begin{equation}
+\label{eq:qm1}
+\begin{aligned}
+Q_0 &=
+\begin{pmatrix}
+	\dfrac{\boldsymbol{b}}{\|\boldsymbol{b}\|_2}
+\end{pmatrix},\quad
+Q_{k+1}=
+\begin{pmatrix}
+	Q_{k}&\boldsymbol{q}_{k+1}
+\end{pmatrix},\quad k=0,1,\cdots \\
+\boldsymbol{q}_{k+1} &= \dfrac{\boldsymbol{v}_{k+1}}{\|\boldsymbol{v}_{k+1}\|_2},\quad
+\boldsymbol{v}_{k+1}=A\boldsymbol{q}_k-h_{1k}\boldsymbol{q}_1-h_{2k}\boldsymbol{q}_2-\cdots-h_{kk}\boldsymbol{q}_k
+\end{aligned}
+\end{equation}
+
+indent也就是说，对于新加入的向量$A\boldsymbol{q}_k$，希望将其同已正交化的$k$个基底向量$\{\boldsymbol{q}_i\}_{i=1}^k$正交化后得到$\boldsymbol{v}_{k+1}$，以及对应的单位向量$\boldsymbol{q}_{k+1}$作为新加入的基底向量，以此来扩充Krylov子空间。因此需要确定系数$h_{ik}$来确保$\boldsymbol{q}_{k+1}$和$\{\boldsymbol{q}_i\}_{i=1}^{k}$的正交（此即线性无关向量组的Gram-Schmidt正交化方法）。根据Gram-Schmidt正交化方法，向量$\boldsymbol{q}_i$的系数$h_{ik}$为其和所要正交化的向量（这里便是$A\boldsymbol{q}_k$）的内积，即：
+
+\[h_{ik}=(A\boldsymbol{q}_k,\boldsymbol{q}_i)\]
+
+[alert type="info"]Arnoldi方法的特点在于只需要向$\mathcal{K}_k$中加入一个新的搜索方向$\boldsymbol{q}_{k+1}$便能得到$\mathcal{K}_{k+1}$的标准正交基底向量，并且避免了病态向量$A^k\boldsymbol{b}$的计算。此外，利用上一步的迭代结果并结合[label]Givens平面旋转[/label]，还能简化最小二乘问题的求解。[/alert]
+
+最后，对式（\ref{eq:qm1}）进行改写，便可以得到如下递推表达式：
+
+\begin{equation}
+\label{eq:aqk}
+\begin{array}{rrcl}
+	& \boldsymbol{v}_{k+1} & = & A\boldsymbol{q}_k-h_{1k}\boldsymbol{q}_1-\cdots-h_{kk}\boldsymbol{q}_k\quad \\
+	\Longleftrightarrow & A\boldsymbol{q}_k & = & h_{1k}\boldsymbol{q}_1+\cdots+h_{kk}\boldsymbol{q}_k+\|\boldsymbol{v}_{k+1}\|_2\boldsymbol{q}_{k+1} \\
+	\Longleftrightarrow & A\boldsymbol{q}_k & = & \displaystyle \sum_{i=1}^{k+1}h_{ik}\boldsymbol{q}_i
+\end{array} \quad,\quad
+\begin{aligned}
+	& k = 1,\cdots,n-1 \\
+	& h_{k+1,k} = \|\boldsymbol{v}_{k+1}\|_2 \\
+\end{aligned}
+\end{equation}
+
+indent式（\ref{eq:aqk}）给出了搜索方向$\boldsymbol{q}_i$之间的关系表达式，而它也就是Arnoldi迭代方法：先通过递推关系式得到$\boldsymbol{v}_{k+1}$，并计算其$2$-范数，也就是新的基底向量$\boldsymbol{q}_{k+1}$对应的系数$h_{k+1,k}$，最后对其规格化便能得到新的标准正交基底向量$\boldsymbol{q}_{k+1}=\boldsymbol{v}_{k+1}/h_{k+1,k}$。进一步观察式（\ref{eq:aqk}），它也可以表示成矩阵乘积的形式，即：$AQ_k=Q_{k+1}H_k$，其中$H_k$为$(k+1) \times k$阶的[label]上Hessenberg矩阵[/label]，其矩阵表示形式为：
+
+\[
+H_k=
+\begin{pmatrix}
+h_{11} & h_{21} & \cdots & \cdots & h_{1k} \\
+h_{21} & h_{22} & \cdots & \cdots & \vdots \\
+& h_{32} & \ddots & & \vdots \\
+& & \ddots & \ddots & \vdots \\
+& & & h_{k,k-1} & h_{kk} \\
+& & & & h_{k+1,k}
+\end{pmatrix}
+\]
+
+%[/aside_content]
+
+% H2, H3
+% \subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Jacobi Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	\For{$i\gets 1$ \KwTo $n$}{
+		$\delta\gets r_i/A_{ii}$\;
+		$x_i\gets x_i+\delta$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+\end{document}

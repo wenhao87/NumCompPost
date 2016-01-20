@@ -1,0 +1,314 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{详解Lanczos方法与线性方程组的Lanczos迭代法}
+
+%[aside_content]
+
+本文所要介绍的[label]共轭梯度方法[/label]（Conjugate Gradient, [label]CG[/label]）主要用于求解稀疏[label]对称正定[/label]（sparse Symmetric Positive Definite）线性方程组$A\boldsymbol{x}=\boldsymbol{b}$。用一句话来概括共轭梯度方法（CG）的话，就是该方法实现了一种[label]Krylov子空间[/label]$\mathcal{K}_m(\boldsymbol{r}_0,A)$上的[label]正交投影[/lable]技术，其中$\boldsymbol{r}_0$为初始[label]残差[/label]。显然，在数学上它等价于求解线性方程组的[label]Arnoldi方法[/label]，即[label]完全正交化方法[/label]（[label]FOM[/label]）（见线性方程组的Arnoldi方法之：FOM一文）。另一方面，由于矩阵$A$的一些特殊性质（对称、正定），利用[label]对称Lanczos方法[/label]的B三项递归关系式（见详解Lanczos方法与线性方程组的Lanczos迭代法一文），算法可以得到进一步的简化。
+
+\subsection*{线性方程组的Lanczos迭代法}
+
+如上所述，共轭梯度（CG）方法可以通过以下两种方式推导获得。这两种算法的核心本质都是Arnoldi方法在矩阵$A$是对称矩阵的情况下所得到的简化版本，也就是对称Lanczos方法。不同之处在于近似解$\boldsymbol{x}_m$的求解方式上：第一种基于完全正交化方法（FOM）（见线性方程组的Arnoldi方法之：FOM一文）；第二种则基于直接不完全正交化方法（DIOM）（见不完全（IOM）和直接不完全（DIOM）正交化方法一文）。后者便是前文所介绍的直接对称Lanczos迭代法（见详解Lanczos方法与线性方程组的Lanczos迭代法一文）。
+
+\subsubsection*{基于完全正交化方法（FOM）}
+
+共轭梯度（CG）方法可以看作是完全正交化方法（FOM）的一种变形，区别在于共轭梯度（CG）方法得到的[label]上Hessenberg矩阵[/label]$H_m$实际是一个[label]对称三对角矩阵[/label]$T_m$，结合一组向量基底$V_m$，便能进行近似解的计算：$\boldsymbol{y}_m=T^{-1}_m(\beta\boldsymbol{e}_1)$以及$\boldsymbol{x}_m=\boldsymbol{x}_0+V_m\boldsymbol{y}_m$，这种方法也称为线性方程组的[label]Lanczos方法[/label]。下面给出其具体的算法实现：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Lanczos Method for Linear System}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\beta\gets\|\boldsymbol{r}_0\|_2$, $\boldsymbol{v}_1\gets\boldsymbol{r}_0/\beta$\;
+set $\beta_1\gets0$, $\boldsymbol{v}_0\gets0$\;
+\For{$j\gets 1$ \KwTo $m$}{
+	$\boldsymbol{w}_j\gets A\boldsymbol{v}_j-\beta_j\boldsymbol{v}_{j-1}$\;
+	$\alpha_j\gets(\boldsymbol{w}_j,\boldsymbol{v}_j)$\;
+	$\boldsymbol{w}_j\gets\boldsymbol{w}_j-\alpha_j\boldsymbol{v}_j$\;
+	$\beta_{j+1}\gets\|\boldsymbol{w}_j\|_2$\;
+	\If{$\beta_{j+1}=0$}{
+		set $m\gets j$; Goto 13\;
+	}
+	$\boldsymbol{v}_{j+1}\gets\boldsymbol{w}_j/\beta_{j+1}$\;
+}
+set $T_m\gets\text{tridiag}(\beta_i,\alpha_i,\beta_{i+1})$, and $V_m\gets(\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m)$\;
+$\boldsymbol{y}_m\gets H_m^{-1}(\beta\boldsymbol{e}_1)$; $\boldsymbol{x}_m\gets\boldsymbol{x}_0+V_m\boldsymbol{y}_m$\;
+\end{algorithm}
+%[/latex]
+
+上述算法的第$3\thicksim12$行便是Arnoldi方法简化而来的对称Lanczos方法。算法最后（第$14$行）$\boldsymbol{y}_m$和$\boldsymbol{x}_m$的计算则和完全正交化方法（FOM）的计算形式一致，因此和FOM方法一样，该算法中近似解$\boldsymbol{x}_m$的残差也可以表示为（$h_{m+1,m}=\beta_{m+1}$）：
+
+\begin{equation}
+\label{eq:rm}
+\boldsymbol{b}-A\boldsymbol{x}_m=-\beta_{m+1}\left(\boldsymbol{e}^T_m\boldsymbol{y}_m\right)\boldsymbol{v}_{m+1}
+\end{equation}
+
+\subsubsection*{基于直接不完全正交化方法（DIOM）}
+
+直接不完全正交化方法（DIOM）在$k=2$时，结合对称Lanczos方法，所得到的便是线性方程组的直接Lanczos迭代法。其具体算法在详解Lanczos方法与线性方程组的Lanczos迭代法一文中已详细给出，这里不再冗述，但需要注意的是，共轭梯度（CG）方法的算法推导主要都将基于直接Lanczos迭代法的以下几个重要性质。
+
+\subsubsection*{直接Lanczos迭代法的重要性质}
+
+- 各个残差之间相互正交
+
+根据式（\ref{eq:rm}）近似解$\boldsymbol{x}_m$的残差表达式可知：
+
+\begin{equation}
+\label{eq:rsv}
+\boldsymbol{r}_m=\sigma_m\boldsymbol{v}_{m+1},\quad\sigma_m=-\beta_{m+1}\left(\boldsymbol{e}^T_m\boldsymbol{y}_m\right)
+\end{equation}
+
+indent而由于$\{\boldsymbol{v}_i\}_{i=1}^{m+1}$是一组标准正交基底，因此可以推知，各个残差$\{\boldsymbol{r}_i\}_{i=0}^{m}$之间也都相互正交。并且，由于$\boldsymbol{r}_m$是关于$\boldsymbol{v}_{m+1}$的表达式，因此它和前$m$个$\{\boldsymbol{v}_i\}_{i=1}^m$都正交。
+
+- $\left(A\boldsymbol{p}_i,\boldsymbol{p}_j\right)=0,i \neq j$
+
+利用$P_m$的定义和$T_m$的LU分解，可以推知：
+
+\begin{equation}
+\label{eq:pap}
+\begin{aligned}
+P_m&=V_mU_m^{-1} \\
+T_m&=L_mU_m=V_m^TAV_m \\
+\end{aligned}\quad\Longrightarrow\quad
+\begin{aligned}
+P_m^TAP_m &= U_m^{-T}V_m^TAV_mU_m^{-1} \\
+&= U_m^{-T}T_mU_m^{-1}=U_m^{-T}L_m
+\end{aligned}
+\end{equation}
+
+indent显然，式（\ref{eq:pap}）的最右项$U_m^{-T}L_m$是一个[label]下三角矩阵[/label]，可推至$P_m^TAP_m$也是下三角矩阵。进一步观察$P_m^TAP_m$，由于$A$是对称矩阵，所以$P_m^TAP_m$也是对称矩阵：
+
+\[(P_m^TAP_m)^T=P_m^TA^TP_m=P_m^TAP_m\]
+
+indent于是，$P_m^TAP_m$既是下三角矩阵，又是对称矩阵，所以可以推知，$P_m^TAP_m$必是[label]对角矩阵[/label]，即：
+
+\begin{equation}
+\label{eq:pipj}
+\left(A\boldsymbol{p}_i,\boldsymbol{p}_j\right)=0,\quad i \neq j
+\end{equation}
+
+- $\left(\boldsymbol{v}_i,A\boldsymbol{p}_j\right)=0,i<j$
+
+同样，使用类似式（\ref{eq:pap}）推导方式，可以推知：
+
+\[V_m^TAP_m=V_m^TAV_mU_m^{-1}=T_mU_m^{-1}=L_m\]
+
+indent所以，由于$L_m$是下三角矩阵，必然可以得知：
+
+\begin{equation}
+\label{eq:vap}
+\left(\boldsymbol{v}_i,A\boldsymbol{p}_j\right)=\left(A\boldsymbol{p}_j,\boldsymbol{v}_i\right)=0,\quad i<j
+\end{equation}
+
+[alert type="success"]根据式（\ref{eq:rsv}）和式（\ref{eq:vap}），可以得出关于直接Lanczos迭代法的一个重要结论，即：对于任意的$k$，对应的$\boldsymbol{r}_k$、$A\boldsymbol{p}_{k+1}$都和$\mathcal{K}_k(A,\boldsymbol{r}_0)=\text{span}\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_k\}$正交。[/alert]
+
+\subsection*{共轭梯度（CG）方法}
+
+\subsubsection*{共轭梯度（CG）方法的推导}
+
+结合直接Lanczos迭代方法以及上面所给出的重要性质，便可以进行共轭梯度（CG）方法的推导。整个推导过程如下所述：
+
+首先，根据直接Lanczos迭代方法可知，近似解$\boldsymbol{x}_m$可以表示为：
+
+\begin{equation}
+\label{eq:xk1pk1}
+\boldsymbol{x}_{k+1}=\boldsymbol{x}_k+\xi_{k+1}\boldsymbol{p}_{k+1}
+\end{equation}
+
+indent于是，引入和式（\ref{eq:xk1pk1}）中$\boldsymbol{p}_{k+1}$平行的搜索方向$\boldsymbol{d}_k$，则$\boldsymbol{x}_{k+1}$可以表示为：
+
+\begin{equation}
+\label{eq:xk1dk}
+\boldsymbol{x}_{k+1}=\boldsymbol{x}_k+\nu_k\boldsymbol{d}_k
+\end{equation}
+
+indent同时也可以推得残差$\boldsymbol{r}_{k+1}$的递推表达式：
+
+\begin{equation}
+\label{eq:rk1adk}
+\begin{aligned}
+\boldsymbol{r}_{k+1}-\boldsymbol{r}_k&=(\boldsymbol{b}-A\boldsymbol{x}_{k+1})-(\boldsymbol{b}-A\boldsymbol{x}_{k}) \\
+&=-A(\boldsymbol{x}_{k+1}-\boldsymbol{x}_k)=-\nu_kA\boldsymbol{d}_k
+\end{aligned}\quad\Longrightarrow\quad
+\boldsymbol{r}_{k+1}=\boldsymbol{r}_k-\nu_kA\boldsymbol{d}_k
+\end{equation}
+
+indent再利用式（\ref{eq:rsv}）各个残差之间相互正交的性质，即：$(\boldsymbol{r}_{k+1},\boldsymbol{r}_k)=0$，结合式（\ref{eq:rk1adk}）可以得到：
+
+\begin{equation}
+\label{eq:muk}
+(\boldsymbol{r}_{k+1},\boldsymbol{r}_k)=(\boldsymbol{r}_k-\nu_kA\boldsymbol{d}_k,\boldsymbol{r}_k)=0\quad\Longrightarrow\quad
+\nu_k=\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{(A\boldsymbol{d}_k,\boldsymbol{r}_k)}
+\end{equation}
+
+接着，考察搜索方向$\boldsymbol{d}_k$。如前所述，它平行于$\boldsymbol{p}_{k+1}$，而根据直接Lanczos迭代方法中$\boldsymbol{p}_k$的表达式，以及式（\ref{eq:rsv}）的残差表达式，即：
+
+\[
+\boldsymbol{p}_{k+1}=u^{-1}_{k+1,k+1}\left(\boldsymbol{v}_{k+1}-\beta_{k+1}\boldsymbol{p}_k\right)\quad,\quad\boldsymbol{r}_k=\sigma_k\boldsymbol{v}_{k+1}
+\]
+
+indent可以推知，$\boldsymbol{d}_k$可以表示成$\boldsymbol{r}_k$和$\boldsymbol{p}_k$的线性组合。换言之，$\boldsymbol{d}_{k+1}$也是$\boldsymbol{r}_{k+1}$和$\boldsymbol{p}_{k+1}$的线性组合，而$\boldsymbol{d}_k$又平行于后者搜索方向$\boldsymbol{p}_{k+1}$，所以可以得到如下$\boldsymbol{d}_{k+1}$的递推关系式：
+
+\begin{equation}
+\label{eq:dk1rhodk}
+\boldsymbol{d}_{k+1}=\boldsymbol{r}_{k+1}+\omega_k\boldsymbol{d}_k
+\end{equation}
+
+indent于是，式（\ref{eq:muk}）中的$\boldsymbol{r}_k$可以用式（\ref{eq:dk1rhodk}）的关系式来表达；另一方面，由于$\boldsymbol{d}_k$是平行于$\boldsymbol{p}_{k+1}$的搜索方向，所以$\boldsymbol{d}_k$同样满足式（\ref{eq:pipj}）的正交性质，于是有：
+
+\begin{equation}
+\label{eq:adkdk}
+\begin{aligned}
+&\boldsymbol{r}_{k}=\boldsymbol{d}_k-\omega_{k-1}\boldsymbol{d}_{k-1} \\
+&(A\boldsymbol{d}_i,\boldsymbol{d}_j)=0,i\neq j
+\end{aligned}\quad\Longrightarrow\quad
+\begin{aligned}
+(A\boldsymbol{d}_k,\boldsymbol{r}_k) &= (A\boldsymbol{d}_k,\boldsymbol{d}_k-\omega_{k-1}\boldsymbol{d}_{k-1}) \\
+&= (A\boldsymbol{d}_k,\boldsymbol{d}_k)-(A\boldsymbol{d}_k,\omega_{k-1}\boldsymbol{d}_{k-1}) \\
+&= (A\boldsymbol{d}_k,\boldsymbol{d}_k)
+\end{aligned}
+\end{equation}
+
+indent那么，将式（\ref{eq:adkdk}）代入式（\ref{eq:muk}）后，$\mu_k$可以重新表示为：
+
+\begin{equation}
+\label{eq:muknew}
+\nu_k=\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{(A\boldsymbol{d}_k,\boldsymbol{r}_k)}=\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{(A\boldsymbol{d}_k,\boldsymbol{d}_k)}
+\end{equation}
+
+最后考察$\omega_k$。利用式（\ref{eq:dk1rhodk}）中$\boldsymbol{d}_k$的递推表达式，以及$\boldsymbol{d}_k$之间的正交性，可以推知：
+
+\begin{equation}
+\label{eq:omegak}
+\left.
+\begin{aligned}
+(\boldsymbol{d}_k,\boldsymbol{d}_{k+1})=0\quad&\Rightarrow\quad(A\boldsymbol{d}_k,\boldsymbol{d}_{k+1})=0 \\
+\boldsymbol{d}_{k+1}=\boldsymbol{r}_{k+1}+\omega_k\boldsymbol{d}_k\quad&\Rightarrow\quad(A\boldsymbol{d}_k,\boldsymbol{r}_{k+1}+\omega_k\boldsymbol{d}_k)=0
+\end{aligned}\quad\right\}\Longrightarrow\quad
+\omega_k=-\dfrac{(A\boldsymbol{d}_k,\boldsymbol{r}_{k+1})}{(A\boldsymbol{d}_k,\boldsymbol{d}_k)}
+\end{equation}
+
+indent再结合式（\ref{eq:muknew}）中$\nu_k$的表达式，式（\ref{eq:rk1adk}）中的$A\boldsymbol{d}_k$的表达式，以及各个残差之间的正交性，可以将式（\ref{eq:omegak}）进一步改写为：
+
+\begin{equation}
+\label{eq:omegaknew}
+\left.
+\begin{aligned}
+(A\boldsymbol{d}_k,\boldsymbol{d}_k)=\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{\nu_k} \\
+A\boldsymbol{d}_k=-\dfrac{1}{\nu_k}(\boldsymbol{r}_{k+1}-\boldsymbol{r}_k) \\
+(\boldsymbol{r}_k,\boldsymbol{r}_{k+1})=0
+\end{aligned}\quad\right\}\Longrightarrow\quad
+\begin{aligned}
+\omega_k &= -\dfrac{\left(-\dfrac{1}{\nu_k}(\boldsymbol{r}_{k+1}-\boldsymbol{r}_k),\boldsymbol{r}_{k+1}\right)}{\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{\nu_k}} \\
+&= \dfrac{(\boldsymbol{r}_{k+1},\boldsymbol{r}_{k+1})}{(\boldsymbol{r}_k,\boldsymbol{r}_k)}
+\end{aligned}
+\end{equation}
+
+至此，便得到了式（\ref{eq:muknew}）关于$\nu_k$的计算方式，以及式（\ref{eq:omegaknew}）关于$\omega_k$的计算方式，从而便完成了共轭梯度（CG）方法的推导，而其原理就是：根据当前近似解$\boldsymbol{x}_k$、$\nu_k$、以及当前搜索方向$\boldsymbol{d}_k$，便可以计算得到$\boldsymbol{x}_{k+1}$；而下一步的搜索方向$\boldsymbol{d}_{k+1}$又可以通过$\boldsymbol{x}_{k+1}$的残差$\boldsymbol{r}_{k+1}$、$\omega_{k}$、以及当前搜索方向$\boldsymbol{d}_k$计算得到。
+
+\subsubsection*{共轭梯度（CG）方法的算法实现}
+
+对上述的推导过程稍加总结，便能得到共轭梯度（CG）方法的算法流程，且整个算法流程主要基于以下几个关系式：
+
+\begin{equation}
+\renewcommand\arraystretch{1.5}
+\begin{array}{lcl}
+\nu_k=\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{(A\boldsymbol{d}_k,\boldsymbol{d}_k)} & \to & 
+\boldsymbol{x}_{k+1}=\boldsymbol{x}_k+\nu_k\boldsymbol{d}_k \\
+\omega_k=\dfrac{(\boldsymbol{r}_{k+1},\boldsymbol{r}_{k+1})}{(\boldsymbol{r}_k,\boldsymbol{r}_k)} & \to &
+\boldsymbol{d}_{k+1}=\boldsymbol{r}_{k+1}+\omega_k\boldsymbol{d}_k
+\end{array}
+\end{equation}
+
+从第$k=0$步起，由初始向量$\boldsymbol{x}_0$可以得到初始残差$\boldsymbol{r}_0$，并令其为初始搜索方向，即$\boldsymbol{r}_0\equiv\boldsymbol{d}_0$，于是便能得到$\nu_0$，并计算得到$\boldsymbol{x}_1$；而通过$\boldsymbol{x}_1$的残差$\boldsymbol{r}_1$和$\boldsymbol{x}_0$的残差$\boldsymbol{r}_0$，便能计算得到$\omega_0$，从而得到下一步$\boldsymbol{x}_1$的搜索方向$\boldsymbol{d}_1$。此后便重复该过程，直到达到收敛条件为止。综上所述，给定对称正定矩阵$A\in\mathbb{R}^{n \times n}$，$\boldsymbol{b},\boldsymbol{x}_0\in\mathbb{R}^n$，共轭梯度（CG）方法的算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Conjugate Gradient Method}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\boldsymbol{d}_0\gets\boldsymbol{r}_0$\;
+\For{$k\gets 0,1,\cdots$}{
+	$\nu_k\gets(\boldsymbol{r}_k,\boldsymbol{r}_k)/(A\boldsymbol{d}_k,\boldsymbol{d}_k)$\;
+	$\boldsymbol{x}_{k+1}\gets\boldsymbol{x}_k+\nu_k\boldsymbol{d}_k$\;
+	$\boldsymbol{r}_{k+1}\gets\boldsymbol{r}_k-\nu_kA\boldsymbol{d}_k$\;
+	$\omega_k\gets(\boldsymbol{r}_{k+1},\boldsymbol{r}_{k+1})/(\boldsymbol{r}_k,\boldsymbol{r}_k)$\;
+	$\boldsymbol{d}_{k+1}\gets\boldsymbol{r}_{k+1}+\omega_k\boldsymbol{d}_k$\;
+	\If{$\boldsymbol{x}_m$ has converged}{
+	Stop\;
+}
+}
+\end{algorithm}
+%[/latex]
+
+[alert type="error"]注意：上述共轭梯度（CG）方法的算法实现第$5$行处，$\boldsymbol{r}_{k+1}$使用的是式（\ref{eq:rk1adk}）的计算方式。另外，关于存储量，除了矩阵$A$以外，共轭梯度（CG）方法只需存储四个向量：$\boldsymbol{x}$、$\boldsymbol{d}$、$A\boldsymbol{d}$、$\boldsymbol{r}$。[/alert]
+
+\subsubsection*{共轭梯度（CG）方法的算法分析}
+
+上述的共轭梯度（CG）方法中，初始搜索方向$\boldsymbol{d}_0=\boldsymbol{r}_0$，得到的迭代格式即为没有预处理的共轭梯度方法（预处理的共轭梯度方法将另文详述）。
+
+在不考虑舍入误差的情况下，对于相同初始向量$\boldsymbol{x}_0$，直接Lanczos迭代法和共轭梯度（CG）方法得到的近似解$\boldsymbol{x}_m$相同，而相比前者，共轭梯度（CG）方法更为简洁。由于在共轭梯度（CG）方法中引入的搜索方向$\boldsymbol{d}_k$和直接Lanczos迭代法中的$\boldsymbol{p}_{k+1}$平行，所以对于任意$k$，共轭梯度（CG）方法中的$\boldsymbol{r}_k$和$A\boldsymbol{d}_k$也都和$\mathcal{K}_k(A,\boldsymbol{r}_0)=\text{span}\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_k\}$正交。
+
+最后需要指出的是，共轭梯度（CG）方法并没有生成直接Lanczos迭代法中的对称三对角矩阵$T_m$，但在矩阵$A$的特征值估计中，$T_m$有着很重要的作用。幸运的是，利用共轭梯度（CG）方法得到的系数，便可以构造出矩阵$T_m$。其原理是：根据式（\ref{eq:rsv}）可知，$\boldsymbol{x}_m$的残差$\boldsymbol{r}_m$与$\boldsymbol{v}_{m+1}$平行，而$T_m$又可以表示为$T_m=V_m^TAV_m$，则显然$T_m$可以用$\boldsymbol{r}_m$进行表示，进而可以用共轭梯度（CG）方法中的系数$\nu_k$和$\omega_k$表示。这里具体的推导过程从略，直接给出矩阵$T_m$的系数表示形式：
+
+\[
+\renewcommand\arraystretch{1.5}
+T_m=\begin{pmatrix}
+\frac{1}{\nu_0} & \frac{\sqrt{\omega_0}}{\nu_0} & & & \\
+\frac{\sqrt{\omega_0}}{\nu_0} & \frac{1}{\nu_1}+\frac{\omega_0}{\nu_0} & \frac{\sqrt{\omega_1}}{\nu_1} & & \\
+& \ddots & \ddots & \ddots & & \\
+& & \ddots & \ddots & \frac{\sqrt{\omega_{m-2}}}{\nu_{m-2}} \\
+& & & \frac{\sqrt{\omega_{m-2}}}{\nu_{m-2}} & \frac{1}{\nu_{m-1}}+\frac{\omega_{m-2}}{\nu_{m-2}}
+\end{pmatrix}\]
+
+
+
+
+%[/aside_content]
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

@@ -1,0 +1,216 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{迭代法中的投影方法}
+
+大部分用于求解大型线性方程组的迭代技术都使用了[label]投影方法[/label]，它利用[label]子空间[/label]来得到线性方程组的近似解。本文主要给出投影方法及其过程的一个通用框架以及相关理论。
+
+\subsection*{两个字空间}
+
+对于一个线性方程组$A\boldsymbol{x}=\boldsymbol{b}$，这里假定$A$是一个$n \times n$阶的实矩阵，[label]投影方法[/label]（projection method）的B核心思想是从$\mathbb{R}^n$的一个[label]子空间[/label]内提取得到该线性方程组的一个[label]近似解[/label]。投影方法的基本框架使用了两个子空间：
+
+- 子空间$\mathcal{K}$：候选近似解的子空间，也称为[label]搜索子空间[/label]。它是$\mathbb{R}^n$中的一个$m$维子空间，表示为了得到近似解需要用到$m$个限制条件，通常用[label]正交化[/label]条件作为此限制；
+
+- 子空间$\mathcal{L}$：如果要求残差向量$\boldsymbol{b}-A\boldsymbol{x}$正交于$m$个线性无关向量，则这$m$个线性无关向量构成了$\mathbb{R}^n$中的另一个$m$维的子空间$\mathcal{L}$，也称为[label]左子空间[/label]；
+
+投影方法一般可以分为[label]正交投影[/label]和[label]斜投影[/lable]两类：
+
+- 在正交投影中，两个子空间$\mathcal{K}$和$\mathcal{L}$相同；
+
+- 在斜投影中，两个子空间$\mathcal{K}$和$\mathcal{L}$不同，甚至可以完全没有任何关系；
+
+\subsection*{通用投影方法}
+
+假定$A$是$\mathbb{R}^n$上的一个$n \times n$阶矩阵，$\mathcal{K}$和$\mathcal{L}$是$\mathbb{R}^n$上的两个$m$维子空间。投影过程就是在寻找线性方程组近似解$\boldsymbol{x}^\ast$的过程中，要求其满足$\boldsymbol{x}^\ast$属于子空间$\mathcal{K}$，同时其残差向量正交于$\mathcal{L}$；另一方面，由于初始向量$\boldsymbol{x}^{(0)}$的存在，所以准确来说，近似解$\boldsymbol{x}^\ast$的搜索应该在[label]仿射空间[/label]（affine space）$\boldsymbol{x}^{(0)}+\mathcal{K}$中进行，即：
+
+\begin{equation}
+\label{eq:mkl}
+\boldsymbol{x}^\ast\in\boldsymbol{x}^{(0)}+\mathcal{K},\quad\boldsymbol{b}-A\boldsymbol{x}^\ast\perp\mathcal{L}
+\end{equation}
+
+如果$\boldsymbol{x}^\ast$具有形式：$\boldsymbol{x}^\ast=\boldsymbol{x}^{(0)}+\boldsymbol{\delta}$，初始残差向量$\boldsymbol{r}^{(0)}$具有形式：$\boldsymbol{r}^{(0)}=\boldsymbol{b}-A\boldsymbol{x}^{(0)}$，则由式（\ref{eq:mkl}）可以推得：
+
+\[
+\boldsymbol{b}-A\boldsymbol{x}^\ast=\boldsymbol{b}-A(\boldsymbol{x}^{(0)}+\boldsymbol{\delta})=(\boldsymbol{r}^{(0)}-A\boldsymbol{\delta})\perp\mathcal{L}
+\]
+
+indent 换言之，近似解的求解过程可以表示为：
+
+\begin{align}
+\label{eq:cond}
+\begin{split}
+\boldsymbol{x}^\ast=\boldsymbol{x}^{(0)}+\boldsymbol{\delta},&\quad\boldsymbol{\delta}\in\mathcal{K} \\
+\boldsymbol{w}^T(\boldsymbol{r}^{(0)}-A\boldsymbol{\delta})=0,&\quad\forall\boldsymbol{w}\in\mathcal{L}
+\end{split}
+\end{align}
+
+indent 式（\ref{eq:cond}）便是一个基本投影步骤，而投影过程就是执行一系列的该基本投影步骤，且通常每一步都会使用一组新的子空间$\mathcal{K}$和$\mathcal{L}$，并将上一步投影步骤得到的近似解$\boldsymbol{x}^\ast$作为新的初始向量$\boldsymbol{x}^{(0)}$。这就是投影过程的一个基本框架，事实上，几乎所有的基本迭代法都是基于此框架改进而来的。
+
+[alert type="info"]式（\ref{eq:cond}）也称为Petrov-Galerkin条件。特别地，当$\mathcal{K}=\mathcal{L}$时，该条件通常就称为Galerkin条件。[/alert]
+
+\subsection*{投影方法的矩阵表示}
+
+矩阵表示的原理就是用一组[label]基底向量[/label]来表示子空间$\mathcal{K}$和$\mathcal{L}$。通常，令$n \times m$阶矩阵$V=(\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m)$和$W=(\boldsymbol{w}_1,\cdots,\boldsymbol{w}_m)$，它们的列向量分别是构成子空间$\mathcal{K}$和$\mathcal{L}$的一组基底。因此，式（\ref{eq:cond}）的近似解求解过程可以改写为：
+
+\begin{align}
+\label{eq:condmat}
+\begin{split}
+\boldsymbol{x}^\ast&=\boldsymbol{x}^{(0)}+V\boldsymbol{y} \\
+W^T\boldsymbol{r}^{(0)}&=W^TAV\boldsymbol{y}
+\end{split}
+\end{align}
+
+indent 如果$W^TAV$[label]非奇异[/label]，则式（\ref{eq:condmat}）可以合并为：
+
+\begin{equation}
+\label{eq:algo}
+\boldsymbol{x}^\ast=\boldsymbol{x}^{(0)}+V(W^TAV)^{-1}W^T\boldsymbol{r}^{(0)}
+\end{equation}
+
+\subsubsection*{投影方法算法原型}
+
+根据式（\ref{eq:algo}），投影方法的B算法原型可以描述为如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Prototype Projection Method}
+\begin{algorithm}[H]
+\Repeat{convergence}{
+	select a pair of subspaces $\mathcal{K}$ and $\mathcal{L}$\;
+	choose bases $V=(\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m)$ for $\mathcal{K}$\;
+	choose bases $W=(\boldsymbol{w}_1,\cdots,\boldsymbol{w}_m)$ for $\mathcal{L}$\;
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	$\boldsymbol{y}\gets(W^TAV)^{-1}W^T\boldsymbol{r}$\;
+	$\boldsymbol{x}\gets\boldsymbol{x}+V\boldsymbol{y}$\;  }
+\end{algorithm}
+%[/latex]
+
+[alert type="error"]注意：该投影过程只有在$W^TAV$B非奇异时才有定义，并且即使$A$非奇异，也B不能保证$W^TAV$非奇异。但是，如果子空间$A\mathcal{K}$中的任意向量都B不正交于子空间$\mathcal{L}$，显然此时$W^TAV$非奇异。[/alert]
+
+\subsubsection*{$W^TAV$的非奇异性}
+
+两类特殊情况下时，可以保证$W^TAV$的非奇异性：
+
+- 矩阵$A$正定，且$\mathcal{K}=\mathcal{L}$；
+
+- 矩阵$A$非奇异，且$\mathcal{L}=A\mathcal{K}$；
+
+indent 在这两种情况下，子空间$\mathcal{K}$和$\mathcal{L}$内选取的任意基底$V$和$W$，都能保证$B=W^TAV$非奇异。特别地，如果$A$是[label]对称正定矩阵[/label]，且使用B正交投影方法，即子空间$\mathcal{K}$和$\mathcal{L}$的B基底相同，则有$B=V^TAT$，此时$B$也是对称正定矩阵。
+
+\subsection*{最优化观点下的投影方法}
+
+\subsubsection*{正交投影方法}
+
+[alert type="info"]若$A$为对称正定矩阵，定义$(\boldsymbol{x},\boldsymbol{y})_A\equiv(A\boldsymbol{x},\boldsymbol{y})$，相应的范数称为[label]$A$-范数[/label]。[/alert]
+
+设$A$是一个对称正定矩阵，且$\mathcal{K}=\mathcal{L}$，若初始向量为$\boldsymbol{x}^{(0)}$，$\tilde{\boldsymbol{x}}$为精确解，则$\mathcal{K}$上的B正交投影结果$\boldsymbol{x}^\ast$，便是使$\boldsymbol{x}^{(0)}+\mathcal{K}$上的[label]误差$A$-范数[/label]$E(\boldsymbol{x})$达到B最小的一个向量，即：
+
+\[
+E(\boldsymbol{x}^\ast)=\min_{\boldsymbol{x}\in\boldsymbol{x}^{(0)}+\mathcal{K}}E(\boldsymbol{x})=\min_{\boldsymbol{x}\in\boldsymbol{x}^{(0)}+\mathcal{K}}\big(A(\tilde{\boldsymbol{x}}-\boldsymbol{x}),\tilde{\boldsymbol{x}}-\boldsymbol{x}\big)^{1/2}
+\]
+
+indent 理由是：因为$\tilde{\boldsymbol{x}}-\boldsymbol{x}^\ast$[label]A-正交于[/label]$\mathcal{K}$上的所有向量，所以有：
+
+\[
+\big(A(\tilde{\boldsymbol{x}}-\boldsymbol{x}^\ast),\boldsymbol{v}\big)=\big(\boldsymbol{b}-A\boldsymbol{x}^\ast,\boldsymbol{v}\big)=0,\quad\forall\boldsymbol{v}\in\mathcal{K}
+\]
+
+indent 而上式也正是正交投影过程中的Galerkin条件。所以，正交投影方法等价于最小化B误差的$A$-范数。
+
+\subsubsection*{斜投影方法}
+
+如果考虑$\mathcal{L}=A\mathcal{K}$的情况，同样，对于初始向量$\boldsymbol{x}^{(0)}$和精确解$\tilde{\boldsymbol{x}}$来说，正交于$\mathcal{L}$且在$\mathcal{K}$上的B斜投影结果$\boldsymbol{x}^\ast$，是使得$\boldsymbol{x}^{(0)}+\mathcal{K}$上的[label]残差向量[/label]$\boldsymbol{b}-A\boldsymbol{x}$的[label]$2$-范数[/label]$E(\boldsymbol{x})$达到B最小的一个向量，即：
+
+\[
+R(\boldsymbol{x}^\ast)=\min_{\boldsymbol{x}\in\boldsymbol{x}^{(0)}+\mathcal{K}}R(\boldsymbol{x})=\min_{\boldsymbol{x}\in\boldsymbol{x}^{(0)}+\mathcal{K}}\|\boldsymbol{b}-A\boldsymbol{x}\|_2
+\]
+
+indent 理由是：如果$\boldsymbol{x}^\ast$最小化了$R(x)=\|\boldsymbol{b}-A\boldsymbol{x}\|_2$，则表明$\boldsymbol{b}-A\boldsymbol{x}^\ast$正交于$\mathcal{L}=A\mathcal{K}$上的所有向量$\boldsymbol{v}=A\boldsymbol{y}$，其中$\boldsymbol{y}\in\mathcal{K}$，即：
+
+\[
+\big(\boldsymbol{b}-A\boldsymbol{x}^\ast,\boldsymbol{v}\big)=0,\quad\forall\boldsymbol{v}\in A\mathcal{K}
+\]
+
+indent 同样，上式便是斜投影过程中的Petrov-Galerkin条件。所以，斜投影方法等价于最小化B残差的$2-$范数。
+
+\subsection*{投影算子观点下的投影方法}
+
+\subsubsection*{斜投影方法}
+
+先考虑$\mathcal{L}=A\mathcal{K}$的情况，令初始残差$\boldsymbol{r}^{(0)}=\boldsymbol{b}-A\boldsymbol{x}^{(0)}$，利用投影过程得到近似解$\boldsymbol{x}^\ast$后，其残差表示为：
+
+\begin{equation}
+\label{eq:rast}
+\boldsymbol{r}^\ast=\boldsymbol{b}-A\boldsymbol{x}^\ast=\boldsymbol{b}-A(\boldsymbol{x}^{(0)}+\boldsymbol{\delta})=\boldsymbol{r}^{(0)}-A\boldsymbol{\delta}
+\end{equation}
+
+indent 根据投影算法，残差$\boldsymbol{r}^\ast$需正交于$\mathcal{L}=A\mathcal{K}$，所以，$\boldsymbol{r}^{(0)}-A\boldsymbol{\delta}$正交于$A\mathcal{K}$，而其含义便是$A\boldsymbol{\delta}$为$\boldsymbol{r}^{(0)}$在$A\mathcal{K}$上的正交投影，所以$A\boldsymbol{\delta}$可以表示为$P\boldsymbol{r}^{(0)}$，其中$P$为子空间$\mathcal{L}=A\mathcal{K}$上的[label]正交投影算子[/label]。最后，式（\ref{eq:rast}）可以简化为：
+
+\[
+\boldsymbol{r}^\ast=\boldsymbol{r}^{(0)}-P\boldsymbol{r}^{(0)}=(I-P)\boldsymbol{r}^{(0)}
+\]
+
+\subsubsection*{正交投影方法}
+
+考虑$\mathcal{L}=\mathcal{K}$且$A$为对称正定矩阵的情况，令初始误差$\boldsymbol{\epsilon}^{(0)}=\tilde{\boldsymbol{x}}-\boldsymbol{x}^{(0)}$，其中$\tilde{\boldsymbol{x}}$为精确解。利用投影过程得到近似解$\boldsymbol{x}^\ast$后，其误差可以表示为：$\boldsymbol{\epsilon}^\ast=\tilde{\boldsymbol{x}}-\boldsymbol{x}^\ast$，其中$\boldsymbol{x}^\ast=\boldsymbol{x}^{(0)}+\boldsymbol{\delta}$。由此，可以推得以下关系式：
+
+\begin{align*}
+A\boldsymbol{\epsilon}^\ast&=A(\tilde{\boldsymbol{x}}-\boldsymbol{x}^\ast)=\boldsymbol{b}-A\boldsymbol{x}^\ast=\boldsymbol{r}^\ast \\
+&=A\Big((\tilde{\boldsymbol{x}}-\boldsymbol{x}^{(0)})-(\boldsymbol{x}^\ast-\boldsymbol{x}^{(0)})\Big)=A(\boldsymbol{\epsilon}^{(0)}-\boldsymbol{\delta})
+\end{align*}
+
+indent 由于残差$\boldsymbol{r}^\ast$正交于$\mathcal{L}=\mathcal{K}$，则$A(\boldsymbol{\epsilon}^{(0)}-\boldsymbol{\delta})$也正交于$\mathcal{L}=\mathcal{K}$，于是有：
+
+\[
+\Big(A(\boldsymbol{\epsilon}^{(0)}-\boldsymbol{\delta}),\boldsymbol{w}\Big)=0,\quad\forall\boldsymbol{w}\in\mathcal{K}
+\]
+
+indent 由于$A$是对称正定矩阵，上式也可以写为$\big(\boldsymbol{\epsilon}^{(0)}-\boldsymbol{\delta},\boldsymbol{w}\big)_A=0$，其含义为$\boldsymbol{\delta}$是$\boldsymbol{\epsilon}^{(0)}$在子空间$\mathcal{K}$上的$A$-正交投影，于是$\boldsymbol{\delta}$可以表示为$P_A\boldsymbol{\epsilon}^{(0)}$，其中$P_A$为子空间$\mathcal{K}=\mathcal{L}$上的[label]$A$-正交投影算子[/label]。最后，可以得到：
+
+\[
+\boldsymbol{\epsilon}^\ast=\boldsymbol{\epsilon}^{(0)}-\boldsymbol{\delta}=\boldsymbol{\epsilon}^{(0)}-P_A\boldsymbol{\epsilon}^{(0)}=(I-P)\boldsymbol{\epsilon}^{(0)}
+\]
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

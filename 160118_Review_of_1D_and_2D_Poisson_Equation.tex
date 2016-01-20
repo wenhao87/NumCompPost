@@ -1,0 +1,338 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{离散Poisson方程}
+
+在数值计算中的二维Poisson模型一文中介绍了有限差分法在一维Poisson方程和二维Poisson方程上的矩阵表示。本文作为补充，分析了Poisson方程中系数矩阵的性质，以及求解方法。
+
+\subsection*{一维Poisson方程}
+
+考虑带[label]Dirichlet边界条件[/label]的[label]一维Poisson方程[/label]，其中$f(x)$是给定的函数，而$u(x)$则是需要计算的函数：
+
+\begin{equation}
+    \label{eq:1dpoisson}
+    \begin{cases}
+        -\dfrac{\mathrm{d}^2u(x)}{\mathrm{d}x^2} = f(x), \quad 0<x<1 \\
+        u(0)=a, \; u(1)=b
+    \end{cases}
+\end{equation}
+
+\subsubsection*{三点差分离散}
+
+取步长$h=\frac{1}{n+1}$，网格节点$x_i=ih,i=0,\ldots,n+1$，采用[label]中心差分[/label]离散得到：
+
+\begin{equation}
+    \label{eq:1dpoissondiff}
+    \left. -\dfrac{\mathrm{d}^2u(x)}{\mathrm{d}x^2} \right|_{x_i} =
+    \dfrac{2u(x_i)-u(x_{i-1})-u(x_{i+1})}{h^2} + \mathcal{O}
+    \left(
+        h^2 \cdot \left\|\dfrac{\mathrm{d}^4u}{\mathrm{d}x^4}\right\|_\infty
+    \right), \; i=1,\ldots,n
+\end{equation}
+
+noindent将式（\ref{eq:1dpoissondiff}）代入式（\ref{eq:1dpoisson}）一维Poisson方程，并舍去高阶项后得到Poisson方程在$x_i$点的近似方程为：
+
+\begin{equation*}
+    -u_{i-1}+2u_i-u_{i+1} = h^2f_i
+\end{equation*}
+
+noindent其中，$f_i=f(x_i)$，$u_i$为$u(x_i)$的近似。如果令$i=1,\ldots,n$，则可得到$n$个线性方程组，且其矩阵形式为：
+
+\begin{eqnarray*}
+    \label{eq:1dpoissonmat}
+    & \boldsymbol{T}_n\boldsymbol{u} = h^2\boldsymbol{f} \\
+    & \boldsymbol{T}_n = \begin{pmatrix}
+        2 & -1 & & \\
+        -1 & \ddots & \ddots & \\
+        & \ddots & \ddots & -1 \\
+        & & -1 & 2 \\
+    \end{pmatrix} \triangleq \mathrm{tridiag}(-1,2,-1), \;
+    \boldsymbol{u} = \begin{pmatrix}u_1 \\ u_2 \\ \vdots \\ u_{n-1} \\ u_n\end{pmatrix},\;
+    \boldsymbol{f} = \begin{pmatrix}
+        f_1+\frac{u_0}{h^2} \\ f_2 \\ \vdots \\ f_{n-1} \\
+        f_n+\frac{u_{n-1}}{h^2}
+    \end{pmatrix}
+\end{eqnarray*}
+
+\subsubsection*{系数矩阵$\boldsymbol{T}_n$的性质}
+
+一维Poisson方程系数矩阵$\boldsymbol{T}_n$的特征值$\lambda_k$和对应的特征向量$\boldsymbol{z}_k$分别为：
+
+\begin{equation}
+    \label{eq:1dpoissoneig}
+    \begin{aligned}
+        \lambda_k & = 2 - 2\cos\dfrac{k\pi}{n+1} \\
+        \boldsymbol{z}_k & = \sqrt{\dfrac{2}{n+1}} \cdot
+        \begin{pmatrix}
+            \sin\dfrac{k\pi}{n+1}, \sin\dfrac{2k\pi}{n+1}, \cdots,
+            \sin\dfrac{nk\pi}{n+1}
+        \end{pmatrix}^T, \; k=1,2,\ldots, m \\
+\end{aligned}
+\end{equation}
+
+换言之，有$\boldsymbol{T}_n=\boldsymbol{Z\Lambda Z}^T$，其中$\boldsymbol{\Lambda}=\mathrm{diag}(\lambda_1,\lambda_2,\ldots,\lambda_n)$，$\boldsymbol{Z}=(\boldsymbol{z}_1,\boldsymbol{z}_2,\ldots,\boldsymbol{z}_n)$。更一般地，设$\boldsymbol{T}=\mathrm{tridiag}(a,b,c)\in\mathbb{R}^{n \times n}$，则$\boldsymbol{T}$的特征值$\lambda_k$和特征向量$\boldsymbol{z}_k$的第$j$个分量分别为：
+
+\begin{equation*}
+    \begin{aligned}
+        \lambda_k &= b-2\sqrt{ac} \cdot \cos\dfrac{k\pi}{n+1} \\
+        \boldsymbol{z}_k(j) &= \left(\dfrac{a}{c}\right)^{\frac{j}{2}}
+        \sin\dfrac{jk\pi}{n+1} \\
+    \end{aligned} \; , \quad
+    k=1,2,\ldots,n
+\end{equation*}
+
+由式（\ref{eq:1dpoissoneig}）可知，$\boldsymbol{T}_n$是[label]对称正定[/label]的，其最大和最小特征值分别为：
+
+\begin{equation*}
+    \begin{aligned}
+        \lambda_{\max} =&\, \lambda_{k=n} =
+        2\left(1-\cos\dfrac{n\pi}{n+1}\right) \overset{\dagger}{=}
+        4\sin^2\dfrac{n\pi}{2(n+1)} \approx 4\sin^2\dfrac{\pi}{2} = 4 \\
+        \lambda_{\min} =&\, \lambda_{k=1} =
+        2\left(1-\cos\dfrac{\pi}{n+1}\right) = 4\sin^2\dfrac{\pi}{2(n+1)}
+        \overset{\ddagger}{\approx} 4\left(\dfrac{\pi}{2(n+1)}\right)^2 =
+        \left(\dfrac{\pi}{n+1}\right)^2 \\
+        \boldsymbol{\dagger} & \quad 1-\cos\theta = 2\sin^2\left(\frac{\theta}{2}\right)
+        \quad \boldsymbol{\ddagger} \quad \left.\sin\theta\right|_{\theta \to 0} \approx \theta
+    \end{aligned}
+\end{equation*}
+
+noindent于是，当$n$很大时，$\boldsymbol{T}_n$的[label]谱条件数[/label]约为：
+
+\begin{equation}
+    \kappa_2(\boldsymbol{T}_n) \approx \dfrac{\lambda_{\max}}{\lambda_{\min}}
+    = \dfrac{4(n+1)^2}{\pi^2}
+\end{equation}
+
+[alert type="error"]注意：当$n$越来越大时，$\kappa_2(\boldsymbol{T}_n)\to\infty$，即$\boldsymbol{T}$越来越病态。[/alert]
+
+\subsection*{二维Poisson方程}
+
+二维Poisson方程具有如下形式，其中$\Omega=[0,1]\times[0,1]$为求解区域，$\partial\Omega$则表示$\Omega$的边界：
+
+\begin{equation}
+    \label{eq:2dpoisson}
+    \begin{cases}
+        -\Delta u(x,y) = -\dfrac{\partial^2u(x,y)}{\partial x^2} -
+        \dfrac{\partial^2u(x,y)}{\partial y^2} = f(x,y) \;,\quad
+        (x,y) \in \Omega \\
+        u(x,y) = v_0(x,y) \;, \quad (x,y) \in \partial\Omega
+    \end{cases}
+\end{equation}
+
+\subsubsection*{五点差分离散}
+
+类似三点差分离散，在$x$-方向和$y$-方向取相同的步长$h=\frac{1}{n+1}$，网格节点$x_i=ih,\,y_j=jh$，$i,j=0,1,2,\ldots,n+1$。那么在$x$-方向和$y$-方向同时采用中心差分离散便可得到：
+
+\begin{equation}
+    \label{eq:2dpoissondiff}
+    \begin{aligned}
+        -\left.\dfrac{\partial^2u(x,y)}{\partial x^2}\right|_{(x_i,y_j)}
+        &\approx \dfrac{2u(x_i,y_j)-u(x_{i-1},y_j)-u(x_{i+1},y_j)}{h^2} \\
+        -\left.\dfrac{\partial^2u(x,y)}{\partial y^2}\right|_{(x_i,y_j)}
+        &\approx \dfrac{2u(x_i,y_j)-u(x_i,y_{j-1})-u(x_i,y_{j+1})}{h^2} \\
+    \end{aligned}
+\end{equation}
+
+noindent将式（\ref{eq:2dpoissondiff}）代入式（\ref{eq:2dpoisson}）后便能得到二维Poisson方程在$(x_i,y_j)$点的近似离散方程：
+
+\begin{equation*}
+    4u_{ij}-u_{i-1,j}-u_{i+1,j}-u_{i,j-1}-u_{i,j+1} = h^2f_{ij}
+\end{equation*}
+
+noindent其中，$f_{ij}=f(x_i,y_j)$，$u_{ij}$为$u(x_i,y_j)$的近似。如果将其表示为矩阵形式，则有：
+
+\begin{equation*}
+    \boldsymbol{T}\boldsymbol{u} = h^2\boldsymbol{f} \;
+    \left\{\begin{array}{lcl}
+        \boldsymbol{T}_n & \triangleq & \boldsymbol{I}_n \otimes
+        \boldsymbol{T}_n + \boldsymbol{T}_n \otimes \boldsymbol{I}_n \\
+        \boldsymbol{u} & = & \begin{pmatrix}
+            u_{11}, \ldots, u_{n1}, u_{12}, \ldots, u_{n2}, \ldots,
+            u_{1n}, \ldots, u_{nn} \\
+        \end{pmatrix}^T
+    \end{array}\right.
+\end{equation*}
+
+noindent这里$\boldsymbol{T}_n$为一维Poisson方程离散后的系数矩阵，即$\boldsymbol{T}_n=\mathrm{tridiag}(-1,2,-1)$，而$\otimes$则表示为[label]Kroecker积[/label]。对于矩阵$\boldsymbol{A}\in\mathbb{C}^{m \times n}$和$\boldsymbol{B}\in\mathbb{C}^{p \times q}$，则$\boldsymbol{A}$和$\boldsymbol{B}$的Kronecker积定义为：
+
+\[
+    \boldsymbol{A} \otimes \boldsymbol{B} =
+    \begin{pmatrix}
+        a_{11}\boldsymbol{B} & a_{12}\boldsymbol{B} & \cdots & a_{1n}\boldsymbol{B} \\
+        a_{21}\boldsymbol{B} & a_{22}\boldsymbol{B} & \cdots &
+        a_{2n}\boldsymbol{B} \\
+        \vdots & \vdots & \ddots & \vdots \\
+        a_{m1}\boldsymbol{B} & a_{m2}\boldsymbol{B} & \cdots &
+        a_{mn}\boldsymbol{B} \\
+    \end{pmatrix} \in \mathbb{C}^{mp \times nq}
+\]
+
+以$n=3$为例：
+
+\begin{equation*}
+    \begin{aligned}
+        \boldsymbol{T} &= \boldsymbol{I}_3 \otimes \boldsymbol{T}_3 +
+        \boldsymbol{T}_3 \otimes \boldsymbol{I}_3 \\
+        &= \begin{pmatrix}
+            \boldsymbol{T}_3 & & \\ & \boldsymbol{T}_3 & \\
+            & & \boldsymbol{T}_3 \\
+        \end{pmatrix} +
+        \begin{pmatrix}
+            2\boldsymbol{I}_3 & -\boldsymbol{I}_3 & \\
+            -\boldsymbol{I}_3 & 2\boldsymbol{I}_3 & -\boldsymbol{I}_3 \\
+            & -\boldsymbol{I}_3 & 2\boldsymbol{I}_3 \\
+        \end{pmatrix} =
+        \begin{pmatrix}
+            \boldsymbol{T}_3+2\boldsymbol{I}_3 & -\boldsymbol{I}_3 & \\
+            -\boldsymbol{I}_3 & \boldsymbol{T}_3+2\boldsymbol{I}_3 &
+            -\boldsymbol{I}_3 \\
+            & -\boldsymbol{I}_3 & \boldsymbol{T}_3+2\boldsymbol{I}_3 \\
+        \end{pmatrix} \\
+        \boldsymbol{T}\boldsymbol{u} &=
+        \left(
+            \begin{array}{ccc|ccc|ccc}
+                4 & -1 & & -1 & & & & & \\
+                -1 & 4 & -1 & & -1 & & & & \\
+                & -1 & 4 & & & -1 & & & \\ \cline{1-9}
+                -1 & & & 4 & -1 & & -1 & & \\
+                & -1 & & -1 & 4 & -1 & & -1 & \\
+                & & -1 & & -1 & 4 & & & -1 \\ \cline{1-9}
+                & & & -1 & & & 4 & -1 & \\
+                & & & & -1 & & -1 & 4 & -1 \\
+                & & & & & -1 & & -1 & -4 \\
+            \end{array}
+        \right)\left(
+            \begin{array}{c}
+                u_{11} \\ u_{21} \\ u_{31} \\ \cline{1-1}
+                u_{12} \\ u_{22} \\ u_{32} \\ \cline{1-1}
+                u_{13} \\ u_{23} \\ u_{33} \\
+            \end{array}
+        \right) = h^2 \boldsymbol{f}
+    \end{aligned}
+\end{equation*}
+
+\subsubsection*{系数矩阵$\boldsymbol{T}$的性质}
+
+设$\boldsymbol{T}_n=\boldsymbol{Z\Lambda Z}^T$，其中$\boldsymbol{Z}=(\boldsymbol{z}_1,\ldots,\boldsymbol{z}_n)$为[label]正交矩阵[/label]，$\boldsymbol{\Lambda}=\mathrm{diag}(\lambda_1,\ldots,\lambda_n)$为对角矩阵。根据$\boldsymbol{T}=\boldsymbol{I}_n\otimes\boldsymbol{T}_n+\boldsymbol{T}_n\otimes\boldsymbol{I}_n$，由Kronecker乘积的性质可得：
+
+- $\boldsymbol{T}$的特征值分解为：$\boldsymbol{T}=(\boldsymbol{Z}\otimes\boldsymbol{Z})(\boldsymbol{I}\otimes\boldsymbol{\Lambda}+\boldsymbol{\Lambda}\otimes\boldsymbol{I})(\boldsymbol{Z}\otimes\boldsymbol{Z})^T$
+
+- $\boldsymbol{T}$的特征值为$\lambda_i+\lambda_j$，对应的特征向量为$\boldsymbol{z}_i\otimes\boldsymbol{z}_j$，$i,j=1,\ldots,n$
+
+另一方面，由于$\boldsymbol{T}$对称正定，其条件数为
+
+\[
+    \kappa(\boldsymbol{T}) = \dfrac{\lambda_{\max}(\boldsymbol{T})}{\lambda_{\min}(\boldsymbol{T})} =
+    \dfrac{1-\cos\dfrac{n\pi}{n+1}}{1-\cos\dfrac{\pi}{n+1}} \approx
+    \dfrac{4(n+1)^2}{\pi^2}
+\]
+
+[alert type="error"]注意：当$n$越来越大时，$\kappa(\boldsymbol{T})\to\infty$，即$\boldsymbol{T}$越来越病态。[/alert]
+
+[alert type="info"]类似地，三维Poisson方程采用中心差分离散后的系数矩阵为：\[\boldsymbol{T}_n\otimes\boldsymbol{I}\otimes\boldsymbol{I}+\boldsymbol{I}\otimes\boldsymbol{T}_n\otimes\boldsymbol{I}+\boldsymbol{I}\otimes\boldsymbol{I}\otimes\boldsymbol{T}_n\][/alert]
+
+\subsubsection*{二维离散Poisson方程的常用算法}
+
+设网格剖分为$n \times n$，并记$n_s=n^2$，则有：
+
+<table>
+  <tr>
+    <th colspan="2">方法</th>
+    <th>串行时间</th>
+    <th>存储空间</th>
+  </tr>
+  <tr>
+    <td rowspan="4">直接法</td>
+    <td>稠密Cholesky分解</td>
+    <td>$\mathcal{O}(n_s^3)$</td>
+    <td>$\mathcal{O}(n_s^2)$</td>
+  </tr>
+  <tr>
+    <td>显式求逆</td>
+    <td>$\mathcal{O}(n_s^2)$</td>
+    <td>$\mathcal{O}(n_s^2)$</td>
+  </tr>
+  <tr>
+    <td>带状Cholesky分解</td>
+    <td>$\mathcal{O}(n_s^2)$</td>
+    <td>$\mathcal{O}(n_s^{3/2})$</td>
+  </tr>
+  <tr>
+    <td>稀疏Cholesky分解</td>
+    <td>$\mathcal{O}(n_s^{3/2})$</td>
+    <td>$\mathcal{O}(n_s\log n_s)$</td>
+  </tr>
+  <tr>
+    <td rowspan="4">古典迭代法</td>
+    <td>Jacobi</td>
+    <td>$\mathcal{O}(n_s^2)$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td>Gauss-Seidel</td>
+    <td>$\mathcal{O}(n_s^2)$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td>SOR</td>
+    <td>$\mathcal{O}(n_s^{3/2})$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td>带Chebyshev加速的SSOR</td>
+    <td>$\mathcal{O}(n_s^{5/4})$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td rowspan="2">Krylov子空间迭代</td>
+    <td>CG（共轭梯度法）</td>
+    <td>$\mathcal{O}(n_s^{3/2})$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td>CG（带修正IC预处理）</td>
+    <td>$\mathcal{O}(n_s^{5/4})$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td rowspan="3">快速算法</td>
+    <td>FFT（快速Fourier变换）</td>
+    <td>$\mathcal{O}(n_s\log n_s)$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td>块循环优化</td>
+    <td>$\mathcal{O}(n_s\log n_s)$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+  <tr>
+    <td>多重网格</td>
+    <td>$\mathcal{O}(n_s)$</td>
+    <td>$\mathcal{O}(n_s)$</td>
+  </tr>
+</table>
+
+\end{document}

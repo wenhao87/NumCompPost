@@ -1,0 +1,308 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{常见不变子空间及其主要应用}
+
+\subsection*{线性变换$T$下的不变子空间}
+
+考虑一个[label]线性变换[/label]$T$，它能将[label]向量空间[/label]$\mathcal{V}$映射至向量空间$\mathcal{W}$，如果$\mathcal{V}=\mathcal{W}$，则称$T$为定义于$\mathcal{V}$上的[label]]线性算子[/label]（linear operator）。如果将向量空间$\mathcal{V}$分解为$m$个B不交集子空间的[label]直和[/label]（见子空间与投影算子一文），即：
+
+\[\mathcal{V}=\mathcal{X}_1\oplus\cdots\mathcal{X}_m\]
+
+indent那么对于任意$\boldsymbol{v}\in\mathcal{V}$，仅有唯一的$\boldsymbol{x}_i\in\mathcal{X}_i$（$i=1,\cdots,m$），满足$\boldsymbol{v}=\boldsymbol{x}_1+\cdots+\boldsymbol{x}_m$。如果用$T\boldsymbol{v}$代表向量$\boldsymbol{v}$经过$T$映射后得到的[label]像[/label]$T(\boldsymbol{v})$，那么根据线性变换的基本性质，有：
+
+\[
+T\boldsymbol{v}=T(\boldsymbol{x}_1+\cdots+\boldsymbol{x}_m)=T\boldsymbol{x}_1+\cdots+T\boldsymbol{x}_m
+\]
+
+indent于是，线性算子的讨论只需将线性算子$T$限定在子空间$\mathcal{X}_i$上即可，称之为[label]限定算子[/label]（restriction），记为$T_{/\mathcal{X}_i}:\mathcal{X}_i\to\mathcal{X}_i$。限定算子的含义是对于任意$\boldsymbol{x}\in\mathcal{X}_i$，都有$T\boldsymbol{x}\in\mathcal{X}_i$，其等价于：$T(\mathcal{X}_i)\subseteq\mathcal{X}_i$，而满足该性质的子空间$\mathcal{X}_i$称为[label]$T$的不变子空间[/label]（invariant subspace）。
+
+\subsection*{几种常见的不变子空间}
+
+要证明一个子空间$\mathcal{S}$是线性算子$T$的不变子空间，其思路为：设$\boldsymbol{s}\in\mathcal{S}$，如果能证明$T\boldsymbol{s}\in\mathcal{S}$，则$\mathcal{S}$是$T$的不变子空间。
+
+\subsubsection*{$T$的列空间和零空间}
+
+设$T$为定义于向量空间$\mathcal{V}$的线性算子。线性算子$T$的[label]列空间[/label]（值域）为$R(T)=\{T\boldsymbol{v}|\boldsymbol{v}\in\mathcal{V}\}$，而如果$\boldsymbol{v}\in R(T)$，则根据值域的定义，有$T\boldsymbol{v}\in R(T)$，所以说$T$的列空间是$T$的一个不变子空间。
+
+而对于[label]零空间[/label]$N(T)=\{\boldsymbol{v}|T\boldsymbol{v}=0\}$，同样如果$\boldsymbol{v}\in N(T)$，则有$T\boldsymbol{v}=0\in N(T)$（任何子空间都包含零向量）。所以，$T$的零空间也是$T$的一个不变子空间。
+
+\subsubsection*{$TL=LT$时}
+
+设$T$和$V$为定义于向量空间$\mathcal{V}$的线性算子，且满足$TL=LT$，则线性算子$L$的值域$R(L)$和零空间$N(L)$也是$T$的不变子空间。理由如下：
+
+如果$\boldsymbol{v}\in R(L)$，则$\boldsymbol{v}$可以表示为$L\boldsymbol{w}=\boldsymbol{v}$，于是有：$T\boldsymbol{v}=TL\boldsymbol{w}=LT\boldsymbol{w}\in R(L)$，所以$L$的值域$R(L)$是$T$的不变子空间。
+
+另一方面，如果$\boldsymbol{v}\in N(L)$，即$L\boldsymbol{v}=0$，则有$LT\boldsymbol{v}=TL\boldsymbol{v}=0$，所以$T\boldsymbol{v}\in N(L)$，也就说是$L$的零空间$N(L)$也是$T$的不变子空间。
+
+\subsubsection*{$R(T-\lambda I)$和$N(T-\lambda I)$}
+
+设$\lambda$为线性算子$T:\mathcal{V}\to\mathcal{V}$的任意[label]特征值[/label]，则$R(T-\lambda I)$和$N(T-\lambda I)$都是$T$的不变子空间。理由如下：
+
+$T-\lambda I$的值域$R(T-\lambda I)$可以表示为$T(T-\lambda I)$，而它也等于$(T-\lambda I)T$，令$L=T-\lambda I$的话，利用之前的结论，便可直接得到$R(T-\lambda I)$以及$N(T-\lambda I)$都是$T$的不变子空间。事实上，该结论可推广至一般情况下，即：$R(T-\lambda I)^k$和$N(T-\lambda I)^k$也都是$T$的不变子空间（$k=1,\cdots,n$）。
+
+\subsubsection*{循环子空间}
+
+设$\boldsymbol{v}\in\mathcal{V},\boldsymbol{v} \neq 0$，向量$\boldsymbol{v}$在线性算子$T$下生成一个[label]循环子空间[/label]（cyclic subspace）$\mathcal{X}$也是$T$的不变子空间。循环子空间具有如下形式：
+
+\begin{equation}
+\label{eq:cysp}\mathcal{X}=\text{span}\{\boldsymbol{v},T\boldsymbol{v},T^2\boldsymbol{v},\cdots\}
+\end{equation}
+
+indent如果令$k$是使得$\boldsymbol{v},T\boldsymbol{v},\cdots,T^{k-1}\boldsymbol{v}$为[label]线性无关向量集[/label]的最小整数，则有$c_0,c_1,\cdots,c_{k-1}$使得：
+
+\begin{equation}
+\label{eq:tkv}
+T^k\boldsymbol{v}=c_0\boldsymbol{v}+c_1T\boldsymbol{v}+\cdots+c_{k-1}T^{k-1}\boldsymbol{v}
+\end{equation}
+
+indent如果将上式左乘一个$T$，便可以得到$T^{k+1}\boldsymbol{v}=c_0T\boldsymbol{v}+c_1T^2\boldsymbol{v}+\cdots+c_{k-1}T^k\boldsymbol{v}$，其中最后一项$T^k\boldsymbol{v}$又可以由式（\ref{eq:tkv}）所替换。因此，利用归纳法可以推得，对于任意的$m>k$，只需将式（\ref{eq:tkv}）连续左乘$m-k$次$T$，等式左边便是$T^m\boldsymbol{v}$，而等式右边则始终可以表示为$\boldsymbol{v},T\boldsymbol{v},\cdots,T^{k-1}\boldsymbol{v}$的线性组合，从而证得$T(\mathcal{X})\subseteq\mathcal{X}$。
+
+\subsection*{不变子空间的主要应用}
+
+\subsubsection*{表示矩阵}
+
+设向量空间$\mathcal{X}$的基底向量为$\boldsymbol{\beta}=\{\boldsymbol{x}_1,\cdots,\boldsymbol{x}_n\}$，则$\mathcal{X}$中的任意向量$\boldsymbol{x}$都可以表示为基底向量的线性组合，即：$\boldsymbol{x}=c_1\boldsymbol{x}_1+\cdots+c_n\boldsymbol{x}_n$，而$(c_1,\cdots,c_n)^T$则称为$\boldsymbol{x}$关于基底$\boldsymbol{\beta}$的[label]坐标向量[/label]。
+
+进一步，给定$T:\mathcal{V}\to\mathcal{W}$，向量空间$\mathcal{V}$和$\mathcal{W}$的基底分别为：$\boldsymbol{\beta}=\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_n\}$，$\boldsymbol{\gamma}=\{\boldsymbol{w}_1,\cdots,\boldsymbol{w}_m\}$，因为$T(\boldsymbol{v}_i)\in\mathcal{W}$，所以，存在唯一数组$a_{1i},\cdots,a_{mi}$，使得：
+
+\[
+T(\boldsymbol{v}_i)=a_{1i}\boldsymbol{w}_1+a_{2i}\boldsymbol{w}_2+\cdots+a_{mi}\boldsymbol{w}_m,\quad j=1,\cdots,n
+\]
+
+indent这样便可以得到$T(\boldsymbol{v}_i)$关于基底$\boldsymbol{\gamma}$的坐标向量。如果将所有这些坐标向量组合成$m \times n$阶矩阵的话，便能得到$T$关于基底$\boldsymbol{\beta}$和$\boldsymbol{\gamma}$的[label]表示矩阵[/label]（matrix representation）：
+
+\[\Big(T(\boldsymbol{v}_i)\Big)_\gamma=\begin{pmatrix}a_{1i}\\a_{2i}\\\vdots\\a_{mi}\end{pmatrix},\quad
+\Big(T(\boldsymbol{v}_1),\cdots,T(\boldsymbol{v}_n)\Big)=\Big(T\Big)_{\boldsymbol{\beta}}^{\boldsymbol{\gamma}}=A=
+\begin{bmatrix}a_{11}&a_{12}&\cdots&a_{1n}\\a_{21}&a_{22}&\cdots&a_{2n}\\\vdots&\vdots&\ddots&\vdots\\a_{m1}&a_{m2}&\cdots&a_{mn}\end{bmatrix}
+\]
+
+\subsubsection*{化简表示矩阵}
+
+不变子空间的一个最主要应用是B简化线性算子的表示矩阵。由于是不变子空间，所以有：$\mathcal{V}=\mathcal{W}$，以及$\mathfrak{B}=\boldsymbol{\beta}=\boldsymbol{\gamma}=\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_n\}$，且：
+
+\[
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}a_{11}&\cdots&a_{1n}\\\vdots&\ddots&\vdots\\a_{n1}&\cdots&a_{nn}\end{pmatrix}
+\]
+
+indent此时，如果$\mathfrak{B}$中的前$m<n$个向量$\boldsymbol{v_1},\cdots,\boldsymbol{v}_m$能扩张成一个不变子空间$\mathcal{X}$，则对于$i=1,\cdots,m$，始终有：$T\boldsymbol{v}_i\subseteq\mathcal{X}$，即：
+
+\[
+T(\boldsymbol{v}_i)=a_{1i}\boldsymbol{v}_1+\cdots+a_{mi}\boldsymbol{v}_m,\quad j=1,\cdots,n
+\]
+
+indent换言之，对于前$m$个$T\boldsymbol{v}_i,(i=1,\cdots,m)$坐标向量，它们的后$n-m$个元素都为零，所以，$T_{\mathfrak{B}}$具有如下分块形式：
+
+
+\[
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}
+a_{11} & \cdots & a_{1m} & a_{1,m+1} & \cdots & a_{1n} \\
+\vdots & \ddots & \vdots & \vdots & \ddots & \vdots \\
+a_{m1} & \cdots & a_{mm} & a_{m,m+1} & \cdots & a_{mn} \\
+0 & \cdots & 0 & a_{m+1,m+1} & \cdots & a_{m+1,n} \\
+\vdots & \ddots & \vdots & \vdots & \ddots & \vdots \\
+0 & \cdots & 0 & a_{n,m+1} & \cdots & a_{nn}
+\end{pmatrix}=
+\begin{pmatrix}B & C \\ 0 & D\end{pmatrix}
+\]
+
+其中，分块$B$可以看作是限定算子$T_{/\mathcal{X}}$关于基底$\mathfrak{B}=\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m\}$的表示矩阵$\Big(T_{/\mathcal{X}}\Big)_{\mathfrak{B}_\mathcal{X}}$。更进一步，如果后$n-m$个基地向量$\boldsymbol{v}_{m+1},\boldsymbol{v}_{m+2},\cdots,\boldsymbol{v}_{n}$也扩张成一个不变子空间$\mathcal{Y}$，则令$\mathfrak{B}_\mathcal{Y}=\{\boldsymbol{v}_{m+1},\boldsymbol{v}_{m+2},\cdots,\boldsymbol{v}_{n}\}$，那么对于$j=m+1,m+2,\cdots,n$，有：
+
+\[
+T\boldsymbol{v}_{j}=a_{m+1,j}\boldsymbol{v}_{m+1}+a_{m+2,j}\boldsymbol{v}_{m+2}+\cdots+a_{nj}\boldsymbol{v}_{n}
+\]
+
+indent换言之，如果有$\mathcal{V}=\mathcal{X}\oplus\mathcal{Y}$，且$\mathcal{X}$和$\mathcal{Y}$都是不变子空间，则$T$关于基底$\mathfrak{B}=\mathfrak{B}_\mathcal{X}\cup\mathfrak{B}_\mathcal{Y}$的表示矩阵具有如下分块形式：
+
+\[
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}
+a_{11} & \cdots & a_{1m} & 0 & \cdots & 0 \\
+\vdots & \ddots & \vdots & \vdots & \ddots & \vdots \\
+a_{m1} & \cdots & a_{mm} & 0 & \cdots & 0 \\
+0 & \cdots & 0 & a_{m+1,m+1} & \cdots & a_{m+1,n} \\
+\vdots & \ddots & \vdots & \vdots & \ddots & \vdots \\
+0 & \cdots & 0 & a_{n,m+1} & \cdots & a_{nn}
+\end{pmatrix}=
+\begin{pmatrix}
+\Big(T_{/\mathcal{X}}\Big)_{\mathfrak{B}_{\mathcal{X}}} & 0 \\
+0 & \Big(T_{/\mathcal{Y}}\Big)_{\mathfrak{B}_{\mathcal{Y}}}
+\end{pmatrix}
+\]
+
+上述结论可推广至如下一般情况：如果向量空间$\mathcal{V}$为一组不变子空间直和，即：$\mathcal{V}=\mathcal{X}_1\oplus\cdots\oplus\mathcal{X}_m$，其中自空间$\mathcal{B}_i$的基底为$\mathfrak{B}_i$，那么$T$关于$\mathfrak{B}=\mathfrak{B}_1\cup\cdots\cup\mathfrak{B}_m$的表示矩阵为所有限定算子表示矩阵$\big(T_{\mathcal{X}_i}\big)_{\mathfrak{B}_i}$的直和，其形式为：
+
+\[
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}
+\big(T_{/\mathcal{X}_1}\big)_{\mathfrak{B}_{1}} & ~ & ~ \\
+~ & \ddots & ~ \\
+~ & ~ & \big(T_{/\mathcal{X}_m}\big)_{\mathfrak{B}_{m}}
+\end{pmatrix}=
+\big(T_{/\mathcal{X}_1}\big)_{\mathfrak{B}_{1}}\oplus\cdots\oplus\big(T_{/\mathcal{X}_m}\big)_{\mathfrak{B}_{m}}
+\]
+
+\subsection*{限定算子表示矩阵的特殊形态}
+
+事实上，不变子空间$\mathcal{X}_i$及其基底向量$\mathfrak{B}_i$之间的关系，决定了限定算子表示矩阵$\big(T_{/\mathcal{X}_i}\big)_{\mathfrak{B}_i}$的形态。以下讨论几种特殊形态下的限定算子表示矩阵所对应的矩阵形式。
+
+\subsubsection*{对角矩阵}
+
+设线性算子$T$定义于向量空间$\mathcal{V}$，且$\text{dim}\mathcal{V}=n$，令$\lambda_1,\cdots,\lambda_n$为$T$的特征值，对应的特征向量为$\boldsymbol{x}_1,\cdots,\boldsymbol{x}_n$，它们满足关系$T\boldsymbol{x}_i=\lambda_i\boldsymbol{x}_i$。此外，根据之前得到的讨论，有：$N(T-\lambda_iI)$是$T$的不变子空间。于是有：
+
+\[
+\begin{array}{cllll}
+T\boldsymbol{x}_1= & \lambda_1\boldsymbol{x}_1 & & & \\
+T\boldsymbol{x}_2= & & \lambda_2\boldsymbol{x}_2 & &\\
+\vdots & & & \ddots &\\
+T\boldsymbol{x}_n= & & & & \lambda_n\boldsymbol{x}_n\\
+\end{array}
+\]
+
+indent那么，只要这$n$个特征向量[label]线性无关[/label]，则$\text{span}\{\boldsymbol{x}_i\},i=1,\cdots,n$便是彼此不交集的$T$的不变子空间，于是向量空间$\mathcal{V}$可以分解为：
+
+\[\mathcal{V}=\text{span}\{\boldsymbol{x}_1\}\oplus\cdots\oplus\text{span}\{\boldsymbol{x}_n\}\]
+
+indent最后，取这$n$个线性独立的特征向量为基底$\mathfrak{B}=\{\boldsymbol{x}_1,\cdots,\boldsymbol{x}_n\}$，则线性算子$T$关于基底$\mathfrak{B}$的表示矩阵具有最简对角形式，且此时$T$是[label]可对角化[/label]的：
+
+\[
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}
+\lambda_1 & & \\
+& \ddots & \\
+& & \lambda_n
+\end{pmatrix}
+\]
+
+\subsubsection*{上三角化}
+
+然而，并不是每一个线性算子$T$都是可对角化的，但它一定可以[label]上三角化[/label]。其原理是，必定存在一组向量空间$\mathcal{V}$的基底$\mathfrak{B}=\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_n\}$，使得：
+
+\begin{align*}
+T\boldsymbol{v}_1 &= a_{11}\boldsymbol{v}_1 \\
+T\boldsymbol{v}_2 &= a_{12}\boldsymbol{v}_1+a_{22}\boldsymbol{v}_2 \\
+\vdots& \\
+T\boldsymbol{v}_n &= a_{1n}\boldsymbol{v}_1+a_{2n}\boldsymbol{v}_2+\cdots+a_{nn}\boldsymbol{v}_n
+\end{align*}
+
+indent因此，对$i=1,\cdots,n$，$\text{span}\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_i\}$都是不变子空间。那么，线性算子$T$关于基底$\mathfrak{B}$的表示矩阵具有如下上三角形式：
+
+\[
+\big(T\big)_{\mathfrak{B}}=
+\begin{pmatrix}
+a_{11} & a_{12} & \cdots & a_{1n} \\
+0 & a_{22} & \cdots & a_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+0 & 0 & \cdots & a_{nn}
+\end{pmatrix}
+\]
+
+\subsubsection*{有理标准形式}
+
+考察此前提到的一类特殊不变子空间：循环子空间。非零[label]种子向量[/label]$\boldsymbol{v}$在线性算子$T$的作用下所张成的循环子空间$\mathcal{X}_{\boldsymbol{v}}=\text{span}\{\boldsymbol{v},T\boldsymbol{v},T^2\boldsymbol{v},\cdots\}$是一个不变子空间。这里，取前$k$个向量作为$\mathcal{X}_{\boldsymbol{v}}$的基底$\mathfrak{B}_{\boldsymbol{v}}=\{\boldsymbol{v},T\boldsymbol{v},\cdots,T^{k-1}\boldsymbol{v}\}$，则有：
+
+\[
+a_0\boldsymbol{v}+a_1T\boldsymbol{v}+\cdots+a_{k-1}T^{k-1}\boldsymbol{v}+T^k\boldsymbol{v}=0
+\]
+
+indent那么，对$\mathfrak{B}_{\boldsymbol{v}}$中的每一个基底向量进行$T$的线性变换后可以得到：
+
+\[
+\begin{array}{lcrcrrrrr}
+T(\boldsymbol{v}) & = & T\boldsymbol{v} & = & & 1(T\boldsymbol{v}) & & &\\
+T(T\boldsymbol{v}) & = & T^2\boldsymbol{v} & = & & & 1(T^2\boldsymbol{v}) & &\\
+& \vdots & & \vdots & & & & \vdots & \\
+T(T^{k-1}\boldsymbol{v}) & = & T^k\boldsymbol{v} & = & -a_0\boldsymbol{v} & -a_1(T\boldsymbol{v}) & -a_2(T^2\boldsymbol{v}) & \cdots & -a_{k-1}(T^{k-1}\boldsymbol{v})
+\end{array}
+\]
+
+indent则限定算子$T_{/\mathcal{X}_{\boldsymbol{v}}}$关于$\mathfrak{B}_{\boldsymbol{v}}$的表示矩阵为：
+
+\begin{equation}
+\label{eq:matcysub}
+\Big(T_{/\mathcal{X}_{\boldsymbol{v}}}\Big)_{\mathfrak{B}_{\mathbf{v}}}=C=
+\begin{pmatrix}
+0 & 0 & \cdots & 0 & -a_0 \\
+1 & 0 & \cdots & 0 & -a_1 \\
+0 & 1 & \cdots & 0 & -a_2 \\
+\vdots & \vdots & \ddots & \vdots & \vdots \\
+0 & 0 & \cdots & 1 & -a_{k-1}
+\end{pmatrix}
+\end{equation}
+
+[alert type="success"]式（\ref{eq:matcysub}）同时也是多项式$p(t)=a_0+a_1t+\cdots+a_{k-1}t^{k-1}$的[label]相伴矩阵[/label]。
+
+最后，给出[label]循环分解定理[/label]，其描述为：B必定存在一组非零种子向量$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m$，使得向量空间$\mathcal{V}$可以分解为这些种子向量生成的B循环子空间的直和：
+
+\[\mathcal{V}=\mathcal{X}_{\boldsymbol{v}_1}\oplus\cdots\oplus\mathcal{X}_{\boldsymbol{v}_m}\]
+
+indent且其满足如下性质：循环子空间$\mathcal{X}_{\boldsymbol{v}_i}$有基底$\mathfrak{B}_{\boldsymbol{v}_i}=\{\boldsymbol{v}_i,T\boldsymbol{v}_i,\cdots,T^{k_i-1}\boldsymbol{v}_i\}$，其中$k_i$满足$\sum_{i=1}^mk_i=n$。换言之，$T$关于基底$\mathfrak{B}=\mathfrak{B}_1\cup\cdots\cup\mathfrak{B}_m$的表示矩阵便是所有相伴矩阵的直和：
+
+\begin{equation}
+\label{eq:rcf}
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}
+C_1 & & \\
+& \ddots & \\
+& & C_m
+\end{pmatrix}
+\end{equation}
+
+indent其中，$C_i$为$k_i \times k_i$阶相伴矩阵，且$C_i$的最小多项式也称为$T$的[label]不变因子[/label]（invariant factor），它整除$C_{i+1}$的最小多项式，$i=1,\cdots,m-1$。式（\ref{eq:rcf}）也称为线性算子$T$的[label]有理标准形式[/label]（rational canonical form）。
+
+
+
+
+
+
+
+
+
+
+
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

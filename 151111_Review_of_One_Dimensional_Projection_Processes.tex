@@ -1,0 +1,232 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{一维子空间的投影过程}
+
+给定线性方程组$A\boldsymbol{x}=\boldsymbol{b}$，几乎所有的基本[label]迭代法[/label]求解都用到了[label]投影方法[/label]。上文（见迭代法中投影过程的基本框架一文）给出了[label]投影过程[/label]的B基本框架和步骤，其B核心思想是在[label]搜索子空间[/label]$\mathcal{K}$中寻找[label]近似解[/label]，并使其对应的[label]残差向量[/label]B正交于另一个子空间$\mathcal{L}$。本文主要讨论最基本的[label]一维子空间[/label]上的投影过程。
+
+\subsection*{一维子空间}
+
+一维子空间$\mathcal{K}$和$\mathcal{L}$可以表示为：
+
+\[\mathcal{K}=\text{span}\{\boldsymbol{v}\},\quad\mathcal{L}=\text{span}\{\boldsymbol{w}\}\]
+
+indent其中，$\boldsymbol{v}$和$\boldsymbol{w}$是两个向量，且向量$\boldsymbol{r}$为对应于当前近似解$\boldsymbol{x}$的残差向量，即：$\boldsymbol{r}=\boldsymbol{b}-A\boldsymbol{x}$。在上文迭代法中投影过程的基本框架中，给出了如下的B基本投影步骤：
+
+\begin{align*}
+\begin{split}
+\boldsymbol{x}\gets\boldsymbol{x}+\boldsymbol{\delta},&\quad\boldsymbol{\delta}\in\mathcal{K} \\
+\boldsymbol{w}^T(\boldsymbol{r}-A\boldsymbol{\delta})=0,&\quad\forall\boldsymbol{w}\in\mathcal{L} \end{split} \end{align*}
+
+indent而在一维情况下，$\boldsymbol{\delta}$就可以表示为$\alpha\boldsymbol{v}$，那么对于当前近似解$\boldsymbol{x}$，结合Petrov-Galerkin条件：$\boldsymbol{r}-A\boldsymbol{\delta}\perp\boldsymbol{w}$，便可以推得：
+
+\[
+\boldsymbol{w}^T\boldsymbol{r}=\boldsymbol{w}^TA\boldsymbol{\delta}=\alpha\boldsymbol{w}^TA\boldsymbol{v}\quad\Longrightarrow\quad\alpha=\dfrac{\boldsymbol{w}^T\boldsymbol{r}}{\boldsymbol{w}^TA\boldsymbol{v}}=\dfrac{(\boldsymbol{r},\boldsymbol{w})}{(A\boldsymbol{v},\boldsymbol{w})}
+\]
+
+indent于是，问题的关键转换为了向量$\boldsymbol{v}$和$\boldsymbol{w}$的选取上。下文给出了三种常用的选取方法，及其相关算法和收敛性分析。
+
+\subsection*{最速下降法}
+
+[label]最速下降法[/label]（steepest descent），也称为[label]梯度下降法[/label]，它要求矩阵$A$为[label]对称正定矩阵[/label]，并在每一步投影过程中，向量$\boldsymbol{v}$和$\boldsymbol{w}$都取值为$\boldsymbol{r}$，即：$\boldsymbol{v}=\boldsymbol{r}$，$\boldsymbol{w}=\boldsymbol{r}$。其迭代投影过程可以描述为：
+
+\begin{align}
+\label{eq:sditer}
+\begin{split}
+\boldsymbol{r} &\gets \boldsymbol{b}-A\boldsymbol{x} \\
+\alpha &\gets \dfrac{(\boldsymbol{r},\boldsymbol{w})}{(A\boldsymbol{v},\boldsymbol{w})}=\dfrac{(\boldsymbol{r},\boldsymbol{r})}{(A\boldsymbol{r},\boldsymbol{r})} \\
+\boldsymbol{x} &\gets \boldsymbol{x}+\alpha\boldsymbol{v}=\boldsymbol{x}+\alpha\boldsymbol{r}
+\end{split}
+\end{align}
+
+indent 注意到，该计算过程中包含有两个[label]矩阵向量乘法[/label]（$A\boldsymbol{x}$和$A\boldsymbol{r}$），稍作修改的话，可以降为只需一次矩阵向量乘（$A\boldsymbol{r}$）。事实上，第$k+1$步（$k=0,1,\cdots$）的$\boldsymbol{r}^{(k+1)}$只需要使用上一步的$\boldsymbol{r}^{(k)}$即可计算得到。即：
+
+\begin{equation}
+\label{eq:sdred}
+\boldsymbol{r}^{(k+1)}=\boldsymbol{b}-A\boldsymbol{x}^{(k+1)}=\boldsymbol{b}-A\Big(\boldsymbol{x}^{(k)}+\alpha\boldsymbol{r}^{(k)}\Big)=\boldsymbol{r}^{(k)}-\alpha A\boldsymbol{r}^{(k)}
+\end{equation}
+
+\subsubsection*{最速下降法算法实现}
+
+有了式（\ref{eq:sditer}）和式（\ref{eq:sdred}），便可以得到如下的最速下降法算法实现：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Steepest Descent Algorithm}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}=b-A\boldsymbol{x}$ and $\boldsymbol{p}=A\boldsymbol{r}$\;
+\Repeat{convergence}{
+	$\alpha\gets(\boldsymbol{r},\boldsymbol{r})/(\boldsymbol{p},\boldsymbol{r})$\;
+	$\boldsymbol{x}\gets\boldsymbol{x}+\alpha\boldsymbol{r}$\;
+	$\boldsymbol{r}\gets\boldsymbol{r}-\alpha\boldsymbol{p}$\;
+	$\boldsymbol{p}\gets A\boldsymbol{r}$\;}
+\end{algorithm}
+%[/latex]
+
+indent事实上，对于所有具有形式$\boldsymbol{x}+\alpha\boldsymbol{d}$的向量，上述算法的每一个迭代步都极小化了函数：
+
+\[f(\boldsymbol{x})=\|\boldsymbol{x}-\tilde{\boldsymbol{x}}\|_A^2=\Big(A(\boldsymbol{x}-\tilde{\boldsymbol{x}}),(\boldsymbol{x}-\tilde{\boldsymbol{x}})\Big)\]
+
+indent其中，$\tilde{\boldsymbol{x}}$为精确解，$\boldsymbol{d}$是[label]负梯度方向[/label]$-\nabla f$，这个负梯度方向决定了每次迭代B新的搜索方向，且沿着负梯度方向能B最快达到极小点。
+
+\subsubsection*{最速下降法的收敛性}
+
+最速下降法要求$A$是[label]对称正定矩阵[/label]，令$\lambda_{max}$和$\lambda_{min}$分别为$A$的最大和最小[label]特征值[/label]，[label]Kantorovich不等式[/label]指出（证略）：
+
+\begin{equation}
+\label{lm:kant}
+\dfrac{(A\boldsymbol{x},\boldsymbol{x})(A^{-1}\boldsymbol{x},\boldsymbol{x})}{(\boldsymbol{x},\boldsymbol{x})^2} \leq 
+\dfrac{(\lambda_{max}+\lambda_{min})^2}{4\lambda_{max}\lambda_{min}},\quad\forall\boldsymbol{x} \neq 0
+\end{equation}
+
+indent在引理（\ref{lm:kant}）的基础之上，可以推得最速下降法中，第$k$步迭代计算得到的[label]误差[/label]向量$\boldsymbol{d}^{(k)}=\tilde{\boldsymbol{x}}-\boldsymbol{x}^{(k)}$，其[label]$A$-范数[/label]满足：
+
+\begin{equation}
+\label{lm:err}
+\|\boldsymbol{\epsilon}^{(k+1)}\|_A\leq\dfrac{\lambda_{max}-\lambda_{min}}{\lambda_{max}+\lambda_{min}}\|\boldsymbol{\epsilon}^{(k)}\|_A
+\end{equation}
+
+indent且最速下降法对任意初始$\boldsymbol{x}^{0}$都收敛（证略）。
+
+\subsection*{极小残差迭代}
+
+极小残差（minimal residul, MR）迭代法中，要求矩阵$A$为B正定的，但不需要是对称的（$A+A^T$是对称正定的）。在每一步迭代过程中，取$\boldsymbol{v}=\boldsymbol{r}$，$\boldsymbol{w}=A\boldsymbol{r}$，则其迭代投影过程可以描述为：
+
+\begin{align}
+\label{eq:mriter}
+\begin{split}
+\boldsymbol{r} &\gets \boldsymbol{b}-A\boldsymbol{x} \\
+\alpha &\gets \dfrac{(\boldsymbol{r},\boldsymbol{w})}{(A\boldsymbol{v},\boldsymbol{w})}=\dfrac{(\boldsymbol{r},A\boldsymbol{r})}{(A\boldsymbol{r},A\boldsymbol{r})} \\
+\boldsymbol{x} &\gets \boldsymbol{x}+\alpha\boldsymbol{v}=\boldsymbol{x}+\alpha\boldsymbol{r}
+\end{split}
+\end{align}
+
+indent同最速下降法类似，上述极小残差迭代过程也可以修改为只需要执行一次矩阵向量乘（$A\boldsymbol{r}$）即可。这样便能得到如下的极小残差算法实现。
+
+\subsubsection*{极小残差迭代算法实现}
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Minimal Residual Iteration}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}=b-A\boldsymbol{x}$ and $\boldsymbol{p}=A\boldsymbol{r}$\;
+\Repeat{convergence}{
+	$\alpha\gets(\boldsymbol{r},\boldsymbol{p})/(\boldsymbol{p},\boldsymbol{p})$\;
+	$\boldsymbol{x}\gets\boldsymbol{x}+\alpha\boldsymbol{r}$\;
+	$\boldsymbol{r}\gets\boldsymbol{r}-\alpha\boldsymbol{p}$\;
+	$\boldsymbol{p}\gets A\boldsymbol{r}$\;}
+\end{algorithm}
+%[/latex]
+
+indent事实上，上述算法的每一个迭代步都沿着$\boldsymbol{r}$方向，极小化了函数$f(\boldsymbol{x})=\|\boldsymbol{b}-A\boldsymbol{x}\|_2^2$。
+
+\subsubsection*{极小残差迭代的收敛性}
+
+设$A$是[label]正定矩阵[/label]，令：
+
+\[\mu=\lambda_{min}(A+A^T)/2,\quad\sigma=\|A\|_2\]
+
+indent则上述极小残差迭代算法中计算得到的残差向量$\boldsymbol{r}$满足如下关系式：
+
+\[
+\|\boldsymbol{r}^{(k+1)}\|_2\leq\left(1-\dfrac{\mu^2}{\sigma^2}\right)^{1/2}\|\boldsymbol{r}^{(k)}\|_2
+\]
+
+indent且极小残差迭代对任意初始向量$\boldsymbol{x}^{(0)}$都收敛（证略）。
+
+\subsection*{残差范数最速下降法}
+
+在残差范数最速下降（residual norm steepest descent）迭代法中，进一步放宽了对矩阵$A$的限制，只要求其是[label]非奇异[/label]的。并且，在每一步迭代过程中，取$\boldsymbol{v}=A^T\boldsymbol{r}$，$\boldsymbol{w}=A\boldsymbol{v}$，则其迭代投影过程可以描述为：
+
+\begin{align}
+\label{eq:rnsditer}
+\begin{split}
+\boldsymbol{r} &\gets \boldsymbol{b}-A\boldsymbol{x},\quad\boldsymbol{v}=A^T\boldsymbol{r}\\
+\alpha &\gets \dfrac{(\boldsymbol{r},\boldsymbol{w})}{(A\boldsymbol{v},\boldsymbol{w})}=\dfrac{(\boldsymbol{r},A\boldsymbol{v})}{(A\boldsymbol{v},A\boldsymbol{v})}=\dfrac{\boldsymbol{v}^T(A^T\boldsymbol{r})}{\|A\boldsymbol{v}\|_2^2}=\dfrac{\|\boldsymbol{v}\|^2_2}{\|A\boldsymbol{v}\|_2^2}\\
+\boldsymbol{x} &\gets \boldsymbol{x}+\alpha\boldsymbol{v}
+\end{split}
+\end{align}
+
+indent注意到，该计算过程中包含了三个[label]矩阵向量乘法[/label]（$A\boldsymbol{x}$、$A^T\boldsymbol{r}$、$A\boldsymbol{v}$）。如果稍作修改的话，可以降为只需两次矩阵向量乘（$A^T\boldsymbol{r}$和$A\boldsymbol{v}$），原理则同前两个算法一样。事实上，第$k+1$步（$k=0,1,\cdots$）的$\boldsymbol{r}^{(k+1)}$只需要使用上一步的$\boldsymbol{r}^{(k)}$和$A\boldsymbol{v}^{(k)}$即可计算得到。即：
+
+\begin{equation}
+\label{eq:rnsdred}
+\boldsymbol{r}^{(k+1)}=\boldsymbol{b}-A\boldsymbol{x}^{(k+1)}=\boldsymbol{b}-A\Big(\boldsymbol{x}^{(k)}+\alpha\boldsymbol{v}^{(k)}\Big)=\boldsymbol{r}^{(k)}-\alpha A\boldsymbol{v}^{(k)}
+\end{equation}
+
+\subsubsection*{残差范数最速下降算法实现}
+
+有了式（\ref{eq:rnsditer}）和式（\ref{eq:rnsdred}），便可以得到如下残差范数最速下降法的算法实现：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Residual Norm Steepest Descent}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}=b-A\boldsymbol{x}$\;
+\Repeat{convergence}{
+	$\boldsymbol{v} \gets A^T\boldsymbol{r}$\;
+	$\boldsymbol{p} \gets A\boldsymbol{v}$\;
+	$\alpha \gets \|\boldsymbol{v}\|^2_2/\|\boldsymbol{p}\|^2_2$\;
+	$\boldsymbol{x}\gets\boldsymbol{x}+\alpha\boldsymbol{v}$\;
+	$\boldsymbol{r}\gets\boldsymbol{r}-\alpha\boldsymbol{p}$\;}
+\end{algorithm}
+%[/latex]
+
+indent事实上，残差范数最速下降算法的每一个迭代步，都沿着$-\nabla f$方向，极小化了函数$f(\boldsymbol{x})=\|\boldsymbol{b}-A\boldsymbol{x}\|^2_2$。
+
+\subsubsection*{残差范数最速下降的收敛性}
+
+
+事实上，残差范数最速下降法等价于对[label]正规方程[/label]$A^TA\boldsymbol{x}=A^T\boldsymbol{b}$使用最速下降法。如果矩阵$A$非奇异，则$A^TA$对称正定，由引例（\ref{lm:kant}、\ref{lm:err}）可推知，残差范数最速下降法对任意初始向量$\boldsymbol{x}^{(0)}$都收敛。
+
+\subsection*{总结}
+
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

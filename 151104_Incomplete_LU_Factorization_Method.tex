@@ -1,0 +1,179 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{不完全三角分解法}
+
+\subsection*{稀疏模式及相关记号}
+
+如果矩阵$A$的B非零元素较少，且按一定规则分布，即：非零元的[label]稀疏模式[/label]，对其进行[label]LU分解[/label]（也称为[label]完全LU分解[/label]）得到的[label]单位下三角矩阵[/label]$L$和[label]上三角矩阵[/label]$U$B一般不能保持和$A$相同的稀疏模式。但若分解之后$LU$是$A$的一个B近似，则称为矩阵$A$的[lable]不完全分解[/label]，其B逆矩阵$(LU)^{-1}$往往用于线性方程组$A\boldsymbol{x}=\boldsymbol{y}$的[label]预处理[/label]。
+
+设$A=\left(a_{ij}\right)\in\mathbb{R}^{n \times n}$，如下定义两个集合和一个[label]指标集[/label]：
+
+- 非对角元的B位置$ND$：$ND=\{(i,j)|1 \leq i \neq j \leq n\}$
+
+- B非零的非对角元的位置$NZ$：$NZ=\{(i,j)\in ND|a_{ij}\neq 0\}$
+
+- 指标集$\mathcal{F}$：满足$NZ \subseteq \mathcal{F} \subseteq ND$
+
+若$A$有分解：$A=LU+R$，其中：
+
+\begin{align}
+\label{eq:l}
+L=(l_{ij}),&\quad l_{ij}=0,\text{ if }i>j,(i,j)\notin\mathcal{F} \\
+\label{eq:u}
+U=(u_{ij}),&\quad u_{ij}=0,\text{ if }i<j,(i,j)\notin\mathcal{F} \\
+\label{eq:r}
+R=(r_{ij}),&\quad \begin{cases}r_{ij}=0,\text{ if }(i,j)\in\mathcal{F}\\r_{ii}=-\omega\displaystyle{\sum_{\substack{j=1\\j\neq i}}^n}r_{ij},\quad i=1,2,\cdots,n\end{cases}
+\end{align}
+
+indent 这便是$A$关于$\mathcal{F}$和$\omega$的[label]松弛不完全三角分解[/label]，其中$\omega$为[lable]松弛参数[/label]：$0 \leq \omega \leq 1$。特别地，如果$\mathcal{F}=ND$，则$R=0$，即完全三角分解；如果$\mathcal{F}=NZ$，则式（\ref{eq:l}、\ref{eq:u}）表明$L$和$U$具有和$A$B相同的零元分布。
+
+如果把：
+
+\[
+ND/\mathcal{F}=\{(i,j)|i \leq i \neq j \leq n,(i,j)\notin\mathcal{F}\}
+\]
+
+indent 看作是$A$的[label]零模式[/label]，则$L$和$U$B保持了这种零模式。特别地，若$\omega=0$，则称为[label]不完全LU分解[/label]（[label]ILU[/label]）；若$\omega=1$，则称为修正的不完全LU分解（[label]MILU[/label]）。
+
+此外，定义[label]非零模式[/label]$\tilde{\mathcal{F}}=\mathcal{F}\cup\{(i,i):i=1,2,\cdots,n\}$，很显然，它是零模式$ND/\mathcal{F}$的补集。每次修正消元实际就是对非零模式$\tilde{\mathcal{F}}$的元素进行Gauss消元，同时将对角元做修正。
+
+\subsection*{不完全LU分解（ILU）}
+
+\subsubsection*{不完全LU分解算法实现}
+
+对于不完全LU分解，其松弛参数$\omega=0$，算法只对B非零模式中的元素进行消元，所以很容易实现。对于给定的$A$和$\mathcal{F}$，不完全LU分解算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Incomplete LU Factorization}
+\begin{algorithm}[H]
+\For{$k\gets 1$ \KwTo $n-1$}{
+	\For{$i\gets k+1$ \KwTo $n,(i,k)\in\tilde{\mathcal{F}}$} {
+		$a_{ik} \gets a_{ik}/a_{kk}$\;
+		\For{$j\gets k+1$ \KwTo $n,(i,j)\in\tilde{\mathcal{F}}$} {
+			$a_{ij} \gets a_{ij}-a_{ik}a_{kj}$\;
+		}
+	}
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{不完全LU分解算法实例}
+
+以一个$3 \times 3$阶矩阵$A$为例，设：
+
+\[
+A=\begin{pmatrix}1 & 1 & 0 \\ 0 & 2 & 1 \\ 2 & 0 & 1\end{pmatrix},\quad
+\mathcal{F}=NZ=\Big\{(1,2),(2,3),(3,1)\Big\},\quad\omega=0
+\]
+
+indent 显然，非零模式$\tilde{\mathcal{F}}=\Big\{(1,1),(1,2),(2,2),(2,3),(3,1),(3,3)\Big\}$，不完全LU分解就是对非零模式$\tilde{\mathcal{F}}$的Gauss消元。这里，第$k=1$步时，只有$a_{31}\in\tilde{\mathcal{F}}$所在的第$i=3$行需要消元，其中，又只有第$j=3$列的$a_{33}$需要消元。所以，第$1$步消元后，得到：
+
+\[
+A^{(1)}=\begin{pmatrix}1 & 1 & 0 \\ 0 & 2 & 1 \\ \boldsymbol{0} & 0 & 1\end{pmatrix},\quad
+L^{(1)}=\begin{pmatrix}1 & 0 & 0 \\ 0 & 1 & 0 \\ \boldsymbol{2} & 0 & 1\end{pmatrix},\quad
+U^{(1)}=\begin{pmatrix}1 & 1 & 0 \\ 0 & 2 & 1 \\ \boldsymbol{0} & 0 & 1\end{pmatrix},\quad
+\]
+
+indent 此时，$L^{(1)}$和$U^{(1)}$已经是单位下三角矩阵和上三角矩阵了，且它们具有和$A$B相同的非零元分布。
+
+\subsection*{修正的不完全LU分解（MILU）}
+
+\subsubsection*{修正的不完全LU分解算法实现}
+
+修正的不完全LU分解（MILU）和不完全LU分解（ILU）类似，不同之处在于前者会对[label]对角元[/label]进行[label]修正[/label]。修正的B原理是：对B零模式$\mathcal{F}$中的元素进行消元，将消减的量乘以松弛参数$\omega$后，B加到对角元上，最后将原零模式位置下的元素置$0$，B保持其零模式。因此，对于给定的$A$、$\mathcal{F}$和$\omega$，修正的不完全LU分解算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Modified Incomplete LU Factorization}
+\begin{algorithm}[H]
+\For{$k\gets 1$ \KwTo $n-1$}{
+	\For{$i\gets k+1$ \KwTo $n,(i,k)\in\tilde{\mathcal{F}}$} {
+		$a_{ik} \gets a_{ik}/a_{kk}$\;
+		\For{$j\gets k+1$ \KwTo $n,(i,j)\in\tilde{\mathcal{F}}$} {
+			$a_{ij} \gets a_{ij}-a_{ik}a_{kj}$\;
+		}
+		\For{$j\gets k+1$ \KwTo $n,(i,j)\notin\tilde{\mathcal{F}}$} {
+			$a_{ij} \gets a_{ij}-a_{ik}a_{kj}=-a_{ik}a_{kj}$\;
+		}
+		\For{$j\gets k+1$ \KwTo $n,(i,j)\notin\tilde{\mathcal{F}}$} {
+			$a_{ii} \gets a_{ii}+\omega a_{ij}$\;
+			$a_{ij}\gets 0$\;
+		}
+	}
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{修正的不完全LU分解实例}
+
+设$A$为$4 \times 4$阶矩阵：
+
+\[
+A=\begin{pmatrix}1 & 2 & 0 & 4 \\ 0 & 3 & 1 & 0 \\ 2 & 0 & 1 & 0 \\ 4 & 0 & 5 & 1\end{pmatrix},\quad
+\mathcal{F}=NZ,\quad\omega=1
+\]
+
+第$k=1$步时，需要对第$i=3,4$行消元。以第$3$行消元为例：
+
+\begin{align*}
+a'_{31}&=a_{31}/a_{11}=2 \\
+a'_{32}&=-a'_{31}a_{12}=-4,\quad a'_{34}=-a'_{31}a_{14}=-8 \\
+a'_{33}&=a_{33}+\omega a'_{32} + \omega a'_{34}=-11 \\
+a'_{32}&=a'_{34}=0
+\end{align*}
+
+[alert type="info"]实际过程中，一般很少用到$R$的信息，所以一般不保存。但如果需要计算$R=(r_{ij})$的话，可以先令其为零矩阵，并在上述算法第$11,12$行之间加入\[r_{ij}\gets r_{ij}+a_{ij},\quad r_{ii}\gets r_{ii}-\omega a_{ij}\][/alert]
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

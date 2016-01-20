@@ -1,0 +1,84 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{algorithm2e}
+
+\begin{document}
+
+\section*{BLAS-3的列主元Gauss消去法详解}
+
+\subsection*{列主元消去法的并行实现}
+
+\subsubsection*{负载不均衡实现}
+
+设有$p$个进程，将$n \times n$阶矩阵$A$按行分为$p$分块$m \times n$阶子矩阵，其中$m=n/p$，进程$i(i=0,\cdots,p-1)$存放数据块$A_i$并负责相应数据块的更新，则有：
+
+\[
+A=\begin{pmatrix}A_0\\A_1\\\cdots\\A_{p-1}\end{pmatrix},\quad
+A_i\in\mathbb{R}^{m \times n},i=0,1,\cdots,p-1
+\]
+
+第$k=1$步消元时，先要选取第$1$列中绝对值最大的元素，记为$a_{l0}$，这个过程需要所有$p$个进程B共同参与，然后交换进程$0$的第$1$行和$a_{l0}$所在进程的相应行；然后进程$0$把新的$a_{00},a_{01},\cdots,a_{0,n-1}$发送给其他进程；其他进程在接受到这些元素后，计算各自的$l_{10},l_{20},\cdots,l_{n-1,0}$，并更新$A$的右下角$(n-1)\times(n-1)$阶子矩阵。这里的计算和更新可以B并行进行。
+
+然而，该算法的问题在于当进行了$k=m$步消元以后，进程$0$负责的数据域，即子矩阵$A_0$，不会再被修改，后续的消元过程将不需要进程$0$的参与，因此这种算法会导致[label]负载不均衡[/label]现象，即：进程$0$的工作量比进程$p-1$B远远要少。
+
+\subsubsection*{负载均衡的一维卷帘存储}
+
+[label]一维卷帘存储方式[/label]的核心思想在于：依旧让$p$个进程各自负责$m$行，但所负责的两行之间B相距$p$行，也就是说，进程$0$负责第$0,p,2p,\cdots,(m-1)p$行，进程$i$负责第$i,p+i,2p+i,\cdots,(m-1)p+i$行，以此类推。以一个$n \times b$阶矩阵$A$为例，使用$p$个进程的话，每个进程负责的数据域示意图如下：
+
+\[
+\begin{matrix}0\\\vdots\\p-1\\\vdots\\0\\\vdots\\p-1\end{matrix}\quad
+\begin{pmatrix}
+	\ast&\cdots&\cdots&\cdots&\cdots&\ast \\
+	\vdots&&&&&\vdots \\
+	\ast&\cdots&\cdots&\cdots&\cdots&\ast \\
+	\vdots&&&&&\vdots \\
+	\ast&\cdots&\cdots&\cdots&\cdots&\ast \\
+	\vdots&&&&&\vdots \\
+	\ast&\cdots&\cdots&\cdots&\cdots&\ast \\
+\end{pmatrix}
+\]
+
+考虑第$k$次消元（$0 \leq k \leq n-1$）：消元由进程$k \mod p$发起，在选取主元并进行了行交换后，进程$k \mod p$将新的$a_{kk},a_{k+1,k},\cdots,a_{n,k}$发送给其他进程，然后并行更新相应数据。
+
+[alert type="info"]通过一维卷帘模式存储的矩阵$A$，最后消元得到的$L$和$U$，也是按行一维卷帘存储的。[/alert]
+
+$A\boldsymbol{x}=\boldsymbol{b}$的并行求解
+
+假设已经使用一维卷帘存储方式实现了$PA=LU$，则有$PA\boldsymbol{x}=LU\boldsymbol{x}=P\boldsymbol{b}$。所以，首先需要得到$P\boldsymbol{b}$，同时也将其按一维卷帘存储方式存放在每个进程中，即进程$i$需要$(P\boldsymbol{b})_{i+sp}$，其中$i=0,\cdots,p-1$，$s=0,\cdots,m-1$。
+
+[alert type="error"]注意：此时每个进程都需要保存$P$，且为了计算$(P\boldsymbol{b})_{i+sp}$，也需要整个向量$\boldsymbol{b}$。[/alert]
+
+但是，如果事先知道求解方程$A\boldsymbol{x}=\boldsymbol{b}$的话，可以直接对[lable]增广矩阵[/label]$(A,\boldsymbol{b})$使用基于一维卷帘存储的并行列主元消去法。此时返回的$P\boldsymbol{b}$已经按一维卷帘存储方式存放于每个进程之中了，并且$\boldsymbol{b}'$直接使用原来的$\boldsymbol{b}$的存储空间即可。
+
+对于线性方程组$LU\boldsymbol{x}=\boldsymbol{b}'$，首先可以并行计算$L\boldsymbol{y}=\boldsymbol{b}'$，这里$L$和$\boldsymbol{b}$都按一维卷帘方式存放在各个进程中。考虑以下实例（$n=6,p=3$）：
+
+\[
+\begin{matrix}0\\1\\2\\0\\1\\2\end{matrix}\quad
+\begin{pmatrix}
+	1&&&&&\\
+	l_{21}&1&&&&\\
+	l_{31}&l_{32}&1&&&\\
+	l_{41}&l_{42}&l_{43}&1&&\\
+	l_{51}&l_{52}&l_{53}&l_{54}&1&\\
+	l_{61}&l_{62}&l_{63}&l_{64}&l_{65}&l_{66}\\
+\end{pmatrix}
+\begin{pmatrix}y_1\\y_2\\y_3\\y_4\\y_5\\y_6\end{pmatrix}=
+\begin{pmatrix}b_1\\b_2\\b_3\\b_4\\b_5\\b_6\end{pmatrix}
+\]
+
+进程$0$发送$y_1=b_1$给其他进程，所有进程同时执行$b_i\gets b_i-l_{i1}y_1,i=2,3,\cdots,n$；然后进程$1$把$y_2=b_2$发送给其他进程，其他进程同时执行$b_i\gets b_i-l_{i2}y_2,i=3,4,\cdots,n$，以此类推，直至求出$\boldsymbol{y}$。
+
+[alert type="error"]注意：上述过程通信和计算相分离，每次都需要一个数的通信和两个浮点操作，而通信的代价远比浮点计算来得大。[/alert]
+
+更高效的做法是使用[label]流水线[/label]的方式：即一旦某个进程完成了计算，便将结果发送给其他进程，而B不用等待它们完成先前的计算。例如，进程$0$将$y_1$发送给了其他进程，相比其他进程，进程$1$会较早收到数据，它立刻完成$y_2$的计算，并在其他进程还在计算$b_i\gets b_i-l_{i1}y_1,i=3,4,\cdots,n$的同时，将$y_2$发给它们，从而实现了计算和通信的B重叠。最后，使用类似的方法，即可完成$U\boldsymbol{x}=\boldsymbol{y}$的求解。
+
+\end{document}

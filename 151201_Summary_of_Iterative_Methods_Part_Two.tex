@@ -1,0 +1,315 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{迭代法整理（二）：最小二乘问题和基于Givens变换的QR分解}
+
+上文提到(见数值线性代数中的迭代法整理（一）一文)，[label]Krylov方法[/label]的每一步都是在第$k$个Krylov子空间内寻找最优的$\boldsymbol{x}^k$，而其本质便是求解一个[label]最小二乘问题[/label]。通常，将此类Krylov子空间法称为广义极小残差（GMRES）方法。事实上，广义极小残差（GMRES）方法是在共轭梯度（CG）方法之后提出的。根据Arnoldi迭代方法的特性，最小二乘问题的[label]QR分解[/label]可以使用Givens平面旋转变换实现。上文最后提到，Arnoldi迭代方法中的搜索方向$\boldsymbol{q}_i$满足如下递推表达式：
+
+\[
+A\boldsymbol{q}_k=\sum_{i=1}^{k+1}h_{ik}\boldsymbol{q}_i\quad k=1,\cdots,n-1
+\]
+
+indent它也等价于：$AQ_k=Q_{k+1}H_k$，其中$H_k$为$(k+1) \times k$阶的[label]上Hessenberg矩阵[/label]。利用上Hessenberg矩阵的特殊结构可以在第$k$步迭代时，实现$\mathcal{O}(k)$量级的QR分解，其矩阵表示形式为：
+
+\[
+H_k=
+\begin{pmatrix}
+h_{11} & h_{12} & \cdots & \cdots & h_{1k} \\
+h_{21} & h_{22} & \cdots & \cdots & \vdots \\
+& h_{32} & \ddots & & \vdots \\
+& & \ddots & \ddots & \vdots \\
+& & & h_{k,k-1} & h_{kk} \\
+& & & & h_{k+1,k}
+\end{pmatrix}
+\]
+
+\subsection*{QR分解和最小二乘问题}
+
+\subsubsection*{最小二乘问题}
+
+最小二乘问题通常描述为：
+
+\begin{equation}
+\label{eq:lsq}
+\boldsymbol{x}=\text{argmin}_{\boldsymbol{y}}\|\boldsymbol{b}-A\boldsymbol{y}\|_2
+\end{equation}
+
+indent其中，$A\in\mathbb{R}^{m \times n}$，且$m \geq n$。式（\ref{eq:lsq}）的求解有很多种方法，其中较为常用的一种便是QR分解，即：$A=Q\hat{R}$，其中$QQ^T=I$，而$\hat{R}$是一个上三角矩阵，它们的矩阵表示形式为：
+
+\begin{equation}
+	\label{eq:qrmat}
+	\begin{aligned}
+		Q&=
+		\begin{pmatrix}
+			\hat{\boldsymbol{q}}_1 & \hat{\boldsymbol{q}}_2 & \cdots & \hat{\boldsymbol{q}}_m
+		\end{pmatrix}
+		\in\mathbb{R}^{m \times m} \\
+		\hat{R}&=\begin{pmatrix}R \\ 0\end{pmatrix}\in\mathbb{R}^{m \times n}
+	\end{aligned} \quad
+	R=
+	\begin{pmatrix}
+		r_{11} & r_{12} & \cdots & r_{1n} \\
+		& r_{22} & \cdots &	r_{2n} \\
+		& & \ddots & \vdots \\
+		& & & r_{nn} \\
+	\end{pmatrix}\in\mathbb{R}^{n \times n}
+\end{equation}
+
+indent于是，利用正交变换的[label]$2$-范数[/label]不变的性质，结合式（\ref{eq:qrmat}），式(\ref{eq:lsq}）可以改写为：
+
+\begin{equation}
+\label{eq:lsqprocd}
+\begin{aligned}
+\boldsymbol{x} &=
+\text{argmin}_{\boldsymbol{y}}\|Q^T(\boldsymbol{b}-A\boldsymbol{y})\|_2=
+\text{argmin}_{\boldsymbol{y}}\|Q^T\boldsymbol{b}-Q^TA\boldsymbol{y}\|_2 \\
+&= \text{argmin}_{\boldsymbol{y}}\|Q^T\boldsymbol{b}-\hat{R}\boldsymbol{y}\|_2 \\
+\|Q^T\boldsymbol{b}-\hat{R}\boldsymbol{y}\|_2 &=
+\left\|
+\begin{pmatrix}
+	\hat{\boldsymbol{q}}_1^T\boldsymbol{b} \\ \vdots \\
+	\hat{\boldsymbol{q}}_n^T\boldsymbol{b} \\ \cline{1-1}
+	\hat{\boldsymbol{q}}_{n+1}^T\boldsymbol{b} \\ \vdots \\
+	\hat{\boldsymbol{q}}_m^T\boldsymbol{b} \\
+\end{pmatrix}-
+\begin{pmatrix}
+	~ \\ R\boldsymbol{y} \\ ~ \\ \cline{1-1}
+	~ \\ 0 \\ ~
+\end{pmatrix}
+\right\|_2=
+\sqrt{
+	\left\|
+	\begin{pmatrix}
+		\hat{\boldsymbol{q}}_{n+1}^T\boldsymbol{b} \\
+		\vdots \\
+		\hat{\boldsymbol{q}}_{m}^T\boldsymbol{b} \\
+	\end{pmatrix}
+	\right\|_2^2 +
+	\left\|
+		\begin{pmatrix}
+			\hat{\boldsymbol{q}}_1^T\boldsymbol{b} \\
+			\vdots \\
+			\hat{\boldsymbol{q}}_n^T\boldsymbol{b} \\
+		\end{pmatrix}-R\boldsymbol{y}
+	\right\|_2^2
+}
+\end{aligned}
+\end{equation}
+
+indent因此，如果令$\hat{\boldsymbol{b}}=\left(\hat{\boldsymbol{q}}_1^T\boldsymbol{b},\hat{\boldsymbol{q}}_2^T\boldsymbol{b},\cdots,\hat{\boldsymbol{q}}_n^T\boldsymbol{b}\right)^T$，则式（\ref{eq:lsq}）的最小二乘问题也就等价于：
+
+\begin{equation}
+\label{eq:lsqnew}
+\boldsymbol{x}=\text{argmin}_{\boldsymbol{y}}\|\hat{\boldsymbol{b}}-R\boldsymbol{y}\|_2
+\end{equation}
+
+indent而显然，式（\ref{eq:lsqnew}）的最小二乘解即为$\boldsymbol{y}=R^{-1}\hat{\boldsymbol{b}}$，又由于$R$是上三角矩阵，因此很容易通过回代法求得最小二乘解$\boldsymbol{y}$。尽管如此，计算一个给定矩阵的QR分解代价还是很大的，而通过Arnoldi迭代法则可以极大程度上地减少QR分解的计算量。
+
+\subsubsection*{Arnoldi方法的QR分解}
+
+上文提到（见数值线性代数中的迭代法整理（一）一文），Krylov方法的第$k$步迭代的解$\boldsymbol{x}_k$所对应的便是求解以下最小二乘问题：
+
+\begin{equation}
+\label{eq:wk}
+\boldsymbol{x}_k=Q_k\boldsymbol{w}_k,\quad\text{where}\quad\boldsymbol{w}_k=\text{argmin}_{\boldsymbol{w}}\|\boldsymbol{b}-AQ_k\boldsymbol{w}\|_2
+\end{equation}
+
+indent而结合Arnoldi迭代方法的特性，即：$AQ_k=Q_{k+1}H_{k}$，则式（\ref{eq:wk}）可以改写为：
+
+\begin{equation}
+\label{eq:wknew}
+\boldsymbol{w}_k=\text{argmin}_{\boldsymbol{w}}\left\|\boldsymbol{b}-Q_{k+1}H_k\boldsymbol{w}\right\|_2
+\end{equation}
+
+indent于是，仿照式（\ref{eq:lsqprocd}）的过程，再次利用正交变换$2$-范数的不变性，并令$Q_n=\left(Q_{k+1},\boldsymbol{q}_{k+2},\cdots,\boldsymbol{q}_n\right)$，则有：
+
+\[
+\begin{aligned}
+\left\|\boldsymbol{b}-Q_{k+1}H_k\boldsymbol{w}\right\|_2 &=
+\left\|Q_n^T(\boldsymbol{b}-Q_{k+1}H_k\boldsymbol{w})\right\|_2=
+\left\|Q_n^T\boldsymbol{b}-Q_n^TQ_{k+1}H_k\boldsymbol{w}\right\|_2 \\ &=
+\left\|Q_n^T\boldsymbol{b}-\begin{pmatrix}I_{k+1}\\0\end{pmatrix}H_k\boldsymbol{w}\right\|_2=
+\left\|Q_n^T\boldsymbol{b}-\begin{pmatrix}H_k\boldsymbol{w}\\0\end{pmatrix}\right\|_2
+\end{aligned}
+\]
+
+indent所以，式（\ref{eq:wknew}）的最小二乘问题也就等价于：
+
+\begin{equation}
+\label{eq:wkfinal}
+\boldsymbol{w}_k=\text{argmin}\left\|Q_{k+1}\boldsymbol{b}-H_k\boldsymbol{w}\right\|_2
+\end{equation}
+
+indent显然，式（\ref{eq:wkfinal}）的最小二乘问题比原始的式（\ref{eq:wk}）的最小二乘问题要简单许多。一来，$(k+1) \times k$阶上Hessenberg矩阵$H_k$大大降低了矩阵的维数；二来，上Hessenberg十分接近于上三角矩阵，所以很容易通过Householder或者Givens变换来计算其QR分解形式；最后更重要的是，观察式（\ref{eq:hk1}），在$H_k$的最后新增一列后便得到了$H_{k+1}$，所以两者具有极其相似的结构，因此它们的QR分解形式也十分相似。
+
+\begin{equation}
+\label{eq:hk1}
+H_{k+1}=
+\begin{pmatrix}
+	~ & ~ & ~ & h_{1,k+1} \\
+	~ & H_k & ~ & \vdots \\
+	~ & ~ & ~ & h_{k+1,k+1} \\
+	~ & 0 & ~ & h_{k+2,k+1} \\
+\end{pmatrix}
+\end{equation}
+
+\subsection*{基于Givens平面旋转变换的QR分解}
+
+[label]Givens平面旋转变换[/label]是一种有效的矩阵清零方法，例如在矩阵$A$的QR分解中将其转换为上三角矩阵$R$。Givens矩阵$G(i,j,\theta)$的矩阵形式如下，其作用是将向量$\boldsymbol{x}$中的第$j$个分量置$0$（具体见详解基本GMRES方法及其变形一文）：
+
+\[
+G(i,j,\theta)\boldsymbol{x}=
+\begin{pmatrix}
+	1&&&&&&\\&\ddots&&&&&\\
+	&&c&\cdots&s&&\\
+	&&\vdots&\ddots&\vdots&&&\\
+	&&-s&\cdots&c&&\\
+	&&&&&\ddots&\\&&&&&&1
+\end{pmatrix}
+\begin{pmatrix}
+	x_1\\\vdots\\x_i\\\vdots\\x_j\\\vdots\\x_n
+\end{pmatrix}=
+\begin{pmatrix}
+	x_1\\\vdots\\cx_i+sx_j\\\vdots\\-sx_i+cx_j\\\vdots\\x_n
+\end{pmatrix}=
+\begin{pmatrix}
+	x_1\\\vdots\\x'_i\\\vdots\\0\\\vdots\\x_n
+\end{pmatrix}
+\]
+
+indent其中，$c=\cos\theta$，$s=\sin\theta$。那么根据下面的关系式，便可得到$c$和$s$以及$x'_i$的值：
+
+\begin{equation*}
+\left.
+	\begin{aligned} c^2+s^2&=1 \\ -sx_i+cx_j&=0 \end{aligned} \quad
+\right\}\quad\Longrightarrow\quad
+\begin{aligned}
+	c&=\dfrac{x_i}{\sqrt{x_i^2+x_j^2}} \\
+	s&=\dfrac{x_j}{\sqrt{x_i^2+x_j^2}} \\
+\end{aligned}\quad,\quad
+x'_i=\sqrt{x_i^2+x_j^2}
+\end{equation*}
+
+前面提到，由于$H_{k}$和$H_{k+1}$在结构上具有相似性，因此，在第$k$步$H_k$的QR分解形式上，很容易根据Givens平面旋转变换得到下一步迭代$H_{k+1}$的QR分解形式。具体分析如下：考虑如下$H_k$和$H_{k+1}$的矩阵表示形式：
+
+\begin{equation}
+\label{eq:hkhk1}
+H_{k}=
+\begin{pmatrix}
+	h_{11} & \cdots & \cdots & h_{1k} \\
+	h_{21} & \ddots & & \vdots \\
+	& \ddots & \ddots & \vdots \\
+	& & \ddots & h_{kk} \\
+	& & & h_{k+1,k}
+\end{pmatrix}\quad
+H_{k+1}=
+\begin{pmatrix}
+	h_{11} & \cdots & \cdots & h_{1k} & h_{1,k+1}\\
+	h_{21} & \ddots & & \vdots & \vdots \\
+	& \ddots & \ddots & \vdots & \vdots \\
+	& & \ddots & h_{kk} & h_{k,k+1} \\
+	& & & h_{k+1,k} & h_{k+1,k+1} \\
+	& & & & h_{k+2,k+1} \\
+\end{pmatrix}
+\end{equation}
+
+假设第$k$步迭代时已通过连续$k$个Givens变换将$H_{k}$转换为了上三角形式，即：
+
+\[
+G(k+1,k,\theta_k) \cdots G(3,2,\theta_2) \cdot G(2,1,\theta_1) \cdot H_{k}=
+\begin{pmatrix}
+	h_{11}^{(k)} & \cdots & \cdots & h_{1k}^{(k)} \\
+	0 & \ddots & & \vdots \\
+	& \ddots & \ddots & \vdots \\
+	& & \ddots & h_{kk}^{(k)} \\
+	& & & 0
+\end{pmatrix}
+\]
+
+indent而在第$k+1$步时，得到了新的一列$(h_{1,k+1},\cdots,h_{k+2,k+1})^T$，因此需要先将第$k$步的$k$个Givens矩阵作用于该列上，得到：
+
+\begin{equation}
+\label{eq:gk1}
+G(k+1,k,\theta_k) \cdots G(3,2,\theta_2) \cdot G(2,1,\theta_1) \cdot
+\begin{pmatrix}
+	h_{1,k+1} \\ h_{2,k+1} \\ \vdots \\ h_{k+1,k+1} \\ h_{k+2,k+1}
+\end{pmatrix} =
+\begin{pmatrix}
+	h'_{1,k+1} \\ h'_{2,k+1} \\ \vdots \\ h'_{k+1,k+1} \\ h_{k+2,k+1}
+\end{pmatrix}
+\end{equation}
+
+indent然后构造$G(k+2,k+1,\theta_{k+1})$，使得式（\ref{eq:gk1}）中的末元$h_{k+2,k+1}$置$0$，即：
+
+\begin{equation}
+\label{eq:gk2}
+\begin{aligned}
+& G(k+2,k+1,\theta_{k+1}) \cdot
+\begin{pmatrix}
+	h'_{1,k+1} \\ h'_{2,k+1} \\ \vdots \\ h'_{k+1,k+1} \\ h_{k+2,k+1}
+\end{pmatrix} \\ =&
+\begin{pmatrix}
+	1 & & & & \\
+	& \ddots & & & \\
+	& & \ddots & & \\
+	& & & c & s \\
+	& & & -s & c \\
+\end{pmatrix}
+\begin{pmatrix}
+	h'_{1,k+1} \\ h'_{2,k+1} \\ \vdots \\ h'_{k+1,k+1} \\ h_{k+2,k+1}
+\end{pmatrix} =
+\begin{pmatrix}
+	h'_{1,k+1} \\ h'_{2,k+1} \\ \vdots \\ h''_{k+1,k+1} \\ 0
+\end{pmatrix} =
+\begin{pmatrix}
+	h^{(k+1)}_{1,k+1} \\ h^{(k+1)}_{2,k+1} \\ \vdots \\ h^{(k+1)}_{k+1,k+1} \\ 0
+\end{pmatrix}
+\end{aligned}
+\end{equation}
+
+indent因此归纳来说，假设第$k$步迭代时已经得到$k$个能将$H_k$转换为上三角形式的Givens矩阵，那么当第$k+1$步迭代时，得到了$H_{k+1}$，而它只是比$H_k$多了最末一列，所以先要将上一步的$k$个Givens矩阵作用于$H_{k+1}$的最末一列，然后构造第$k+1$个Givens矩阵用来消减$H_{k+1}$最后一列的最末元，并且由于第$k+1$个Givens矩阵不影响$H_k$中已经上三角化的$k$列，因此末元消减后的结果也就是$H_{k+1}$的QR分解结果。
+
+[alert type="success"]式（\ref{eq:gk1}）和式（\ref{eq:gk2}）说明第$k$步迭代时$H_{k}$的QR分解只需要针对其最后一列的$k$个元素进行更新即可，其计算复杂度为$\mathcal{O}(k)$。因此也可以说，$H_k$的QR分解复杂度也就是$\mathcal{O}(k)$。[/alert]
+
+%[/aside_content]
+
+
+% H2, H3
+% \subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Jacobi Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	\For{$i\gets 1$ \KwTo $n$}{
+		$\delta\gets r_i/A_{ii}$\;
+		$x_i\gets x_i+\delta$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

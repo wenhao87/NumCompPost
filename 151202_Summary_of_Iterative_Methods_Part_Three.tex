@@ -1,0 +1,196 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{迭代法整理（三）：GMRES方法的算法实现和分析}
+
+上文分析了[label]广义极小残差[/label]（GMRES）方法的B核心问题，即：第$k$步迭代时在[label]Krylov子空间[/label]上搜索一个最佳近似解，它等价于求解一个[label]最小二乘问题[/label]，而为了简化该最小二乘问题的求解，可以利用[label]Arnoldi方法[/label]（其本质是[label]改进的Gram-Schmidt正交化[/label]方法）得到[label]搜索方向[/label]$\{\boldsymbol{q}_i\}_{i=1}^k$之间的递推关系式，它们同时也是Krylov子空间的一组标准正交[label]基底向量[/label]；然后利用[label]正交变换[/label]的性质，最小二乘问题可以得到进一步的简化，因为求解最小二乘问题的本质都需要用到[label]QR分解[/label]，而Arnoldi方法得到的[label]上Hessenberg矩阵[/label]$H_k$很容易通过[label]Givens平面旋转变换[/label]进行上三角化，最后通过[label]回代法[/label]便能求得最小二乘解，也就是第$k$步迭代时的最佳近似解（详见迭代法整理（2）：最小二乘问题和Givens变换的QR分解一文）。
+
+\subsection*{GMRES方法的存储量分析}
+
+事实上，广义极小残差（GMRES）方法所需要用到的存储量并不小，尤其当迭代步数较大时，存储的消耗会很大。最显而易见需要进行存储的是$\boldsymbol{b},\boldsymbol{x}\in\mathbb{R}^{n}$和[label]系数矩阵[/label]$A\in\mathbb{R}^{n \times n}$。在矩阵$A$为[label]稀疏矩阵[/label]的情况下，需要单精度或双精度$\mathcal{O}(n)$量级的存储。特别地，如果假定$A$的每行最多只有$l$个非零元，则$\boldsymbol{b},\boldsymbol{x},A$共需要$(l+2)n$个单精度或双精度浮点数的存储。另外，广义极小残差（GMRES）方法每一步迭代最后都是在求解一个最小二乘问题，即：
+
+\begin{equation}
+\label{eq:lsqfinal}
+\boldsymbol{y}_k=\text{argmin}\left\|Q^T_{k+1}\boldsymbol{b}-H_k\boldsymbol{y}\right\|_2
+\end{equation}
+
+indent分析式（\ref{eq:lsqfinal}）可以看出，每一步的GMRES迭代方法过程中都要用到此前所有的搜索方向$\boldsymbol{q}_i\in\mathbb{R}^n$（即Krylov子空间的标准正交基底向量），那么如果假定最多需要进行$m$步迭代的话，则需要额外的$nm$个浮点数来存储搜索方向；极小解$\boldsymbol{y}_k\in\mathbb{R}^{k}$，在最多$m$步迭代的情况下，用一个$m$维的向量存储即可；考察上Hessenberg矩阵$H_k$，由于实际过程中B不需要存储次对角线上的元素，因此在第$m$步时其共需要存储$m(m+1)/2$个浮点数；最后需要考虑的则是Givens矩阵，第$k$步的Givens矩阵可以表示为$G(k+1,k,\theta_k)$，而事实上它只需要存储两个浮点数$c_k$和$s_k$即可，那么在$m$步迭代后共需要$2m$个浮点数。综上所述，广义极小残差（GMRES）方法共需要浮点数（单精度或双精度）：
+
+\begin{equation}
+\label{eq:storage}
+(l+2)n+nm+m+\dfrac{m(m+1)}{2}+2m=(l+m+2)n+\dfrac{m^2+7m}{2}
+\end{equation}
+
+[alert type="error"]注意：迭代过程中并不需要额外存储近似解$\boldsymbol{x}_k$，直接覆盖原有的$\boldsymbol{x}$即可。从式（\ref{eq:storage}）可以看出，当问题规模$n$很大时，B不希望迭代步数$m$比非零元个数$l$大太多。[/alert]
+
+\subsection*{GMRES方法的算法实现}
+\label{sub:GMRES方法的算法实现}
+
+\subsubsection*{GMRES方法的算法原理}
+\label{subs:GMRES方法的算法原理}
+
+到目前为止对$\boldsymbol{x}_k$所使用的搜索子空间都是Krylov子空间$\mathcal{K}_k$，换言之，$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$。而更一般的情况是，$\boldsymbol{x}_k$在仿射空间$\boldsymbol{x}_0+\mathcal{K}_k$中（见详解基本GMRES方法及其变形一文），即初始向量$\boldsymbol{x}_0$不为零，则$\boldsymbol{x}_k=\boldsymbol{x}_0+Q_k\boldsymbol{y}_k$。此时，对应的最小二乘问题为：
+
+\begin{equation}
+\label{eq:lsqgen}
+\begin{aligned}
+\boldsymbol{y}_k &= \text{argmin}_{\boldsymbol{y}}\left\|\boldsymbol{b}-A(\boldsymbol{x}_0+Q_k\boldsymbol{y})\right\|_2=\text{argmin}_{\boldsymbol{y}}\left\|\boldsymbol{r}_0-AQ_k\boldsymbol{y}\right\|_2 \\
+&= \text{argmin}_{\boldsymbol{y}}\left\|\boldsymbol{r}_0-Q_{k+1}H_k\boldsymbol{y}\right\|_2 \\
+&= \text{argmin}_{\boldsymbol{y}}\left\|Q^T_{k+1}\boldsymbol{r}_0-H_k\boldsymbol{y}\right\|_2
+\end{aligned}
+\end{equation}
+
+事实上，式（\ref{eq:lsqfinal}）只是式（\ref{eq:lsqgen}）的一个特例，前者的初始残差$\boldsymbol{r}_0$即为向量$\boldsymbol{b}$本身。进一步观察式（\ref{eq:lsqgen}）可以发现，如果以初始残差的单位向量作为Krylov子空间$\mathcal{K}_k$的种子向量的话，即：$\boldsymbol{q}_1=\boldsymbol{r}_0/\|\boldsymbol{r}_0\|_2$，那么利用该子空间基底向量之间的正交化性质，则有：
+
+\begin{equation*}
+	Q^T_{k+1}\boldsymbol{r}_0=
+	\begin{pmatrix}
+		\boldsymbol{q}_1^T \\ \boldsymbol{q}_2^T \\ \vdots \\
+		\boldsymbol{q}_k^T \\ \boldsymbol{q}^T_{k+1} \\
+	\end{pmatrix}
+	\begin{pmatrix}
+		~ \\ ~ \\ \|\boldsymbol{r}_0\|_2\boldsymbol{q}_1 \\ ~ \\ ~ \\
+	\end{pmatrix} =
+	\begin{pmatrix}
+		\|\boldsymbol{r}_0\|_2 \\ 0 \\ \vdots \\ \vdots \\ 0 \\
+	\end{pmatrix}
+\end{equation*}
+
+[alert type="success"]不论初始向量$\boldsymbol{x}_0$是否为$0$，GMRES方法都只需在算法最开始处计算初始残差$\boldsymbol{r}_0$，并覆盖原有的向量$\boldsymbol{b}$即可，从而不需要引入额外的存储空间。[/alert]
+
+至此，式(\ref{eq:lsqgen})的最小二乘问题可以转换为：
+
+\begin{equation}
+	\label{eq:lsqnew}
+	\boldsymbol{y}_k=\text{argmin}_{\boldsymbol{y}}
+	\left\|
+		\begin{pmatrix}
+			\|\boldsymbol{b}\|_2 \\ 0 \\ \vdots
+		\end{pmatrix}
+		-H_k\boldsymbol{y}
+	\right\|_2
+\end{equation}
+
+indent其中，$\boldsymbol{b}$所代表的实际都是残差向量。式（\ref{eq:lsqnew}）的最小二乘问题求解过程如下：先用此前的$k-1$个Givens矩阵更新$H_k$的最末列$\boldsymbol{h}_k$（前$k-1$列向量已上三角化），接着构造第$k$个Givens矩阵$G(k+1,k,\theta_k)$，从而完成对$H_k$的QR分解。如果令连续$k$个Givens矩阵相乘的结果为$G_k=G(k+1,k,\theta_k)\cdots G(2,1,\theta_1)$的话，那么整体而言，最终式（\ref{eq:lsqnew}）等价于：
+
+\begin{equation}
+\begin{aligned}
+	\boldsymbol{y}_k &= \text{argmin}_{\boldsymbol{y}}
+	\left\|
+		G_k
+		\begin{pmatrix}
+			\|\boldsymbol{b}\|_2 \\ 0 \\ \vdots \\
+		\end{pmatrix}
+		-G_kH_k\boldsymbol{y}
+	\right\|_2 \\ &= \text{argmin}_{\boldsymbol{y}}
+	\left\|
+		\boldsymbol{b}_k-R_k\boldsymbol{y}
+	\right\|_2
+\end{aligned}
+\end{equation}
+
+indent其中，$\boldsymbol{b}_k$为第$k$步时的$k$个Givens矩阵连续作用在向量$(\|\boldsymbol{b}\|_2,0,\cdots)^T$上的结果，而上三角矩阵$R_k$则具有形式$R_k=(R_{k-1},\boldsymbol{h}_k)$，最后通过回代法便能求得极小解$\boldsymbol{y}_m$。
+
+\subsubsection*{GMRES方法的算法实现}
+\label{subs:GMRES方法的算法实现}
+
+在有了上面对广义极小残差（GMRES）方法的更深入的理解，以及上文对其存储量的分析之后，便可以在算法上对GMRES方法进行实现。对于给定的$A\in\mathbb{R}^{n \times n}$和$\boldsymbol{b},\boldsymbol{x}_0\in\mathbb{R}^n$，广义极小残差（GMRES）方法的算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{GMRES Method}
+\begin{algorithm}[H]
+	\tcp{Initialization}
+	$\boldsymbol{b}\gets\boldsymbol{b}-A\boldsymbol{x}_0$
+	\tcp*[r]{resue $\boldsymbol{b}$ for $\boldsymbol{r}_0$}
+	$\boldsymbol{q}_1\gets\boldsymbol{b}/\|\boldsymbol{b}\|_2$
+	\tcp*[r]{$1^\text{st}$ basis}
+	$\boldsymbol{b}\gets(\|\boldsymbol{b}\|_2,0,\cdots,0)^T$
+	\tcp*[r]{$\boldsymbol{b}_1$}
+	\tcp{GMRES(m) kernel}
+	\For{$k\gets1$ \KwTo $m$}{
+		\tcp{MGS-based Arnoldi Methods}
+		$\boldsymbol{q}_{k+1}=A\boldsymbol{q}_k$
+		\tcp*[r]{$\mathcal{O}(ln)$ flops}
+		\For{$i\gets1$ \KwTo $k$}{
+			$h_{ik}\gets(\boldsymbol{q}_{k+1},\boldsymbol{q}_i)$
+			\tcp*[r]{Rightmost entries: $\mathcal{O}(n)$ flops}
+			$\boldsymbol{q}_{k+1}\gets\boldsymbol{q}_{k+1}-h_{ik}\boldsymbol{q}_i$
+			\tcp*[r]{G-S search direction: $\mathcal{O}(n)$ flops}
+		}
+		$h_{k+1,k}\gets\|\boldsymbol{q}_{k+1}\|_2$
+		\tcp*[r]{$1$ sqrt and $\mathcal{O}(n)$ flops}
+		$\boldsymbol{q}_{k+1}\gets\boldsymbol{q}_{k+1}/h_{k+1,k}$
+		\tcp*[r]{$\mathcal{O}(n)$ flops}
+		\tcp{Solve least square problem}
+		\For{$i\gets1$ \KwTo $k-1$}{
+			$\boldsymbol{h}_k \gets G(i+1,i,\theta_i)\boldsymbol{h}_k$
+			\tcp*[r]{$6$ flops}
+		}
+		Compute $G(k+1,k,\theta_k)$
+		\tcp*[r]{$5$ flops and $1$ sqrt}
+		$\boldsymbol{h}_k \gets G(k+1,k,\theta_k)\boldsymbol{h}_k$
+		\tcp*[r]{$3$ flops}
+		$\boldsymbol{b} \gets G(k+1,k,\theta_k)\boldsymbol{b}$
+		\tcp*[r]{$2$ flops}
+		$\boldsymbol{y}_k\gets$ Back-Substittuion$(R_k,\boldsymbol{b})$
+		\tcp*[r]{$\mathcal{O}(k^2)$ flops}
+		\If{$residual < tol$}{
+			\KwRet{$\boldsymbol{x} \gets Q_{k}\boldsymbol{y}_k$}
+			\tcp*[r]{$\mathcal{O}(nk)$ flops}
+		}
+	}
+\end{algorithm}
+%[/latex]
+
+[alert type="info"]从上述算法的最后可以看到，如同详解基本GMRES方法及其变形一文所介绍的一样，GMRES方法的每一步迭代最后并不需要显式计算$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$来判断是否满足精度要求。当最小二乘问题对应的极小解为$\boldsymbol{y}_k$时，所对应的最小二乘值恰为$\boldsymbol{b}_k$的第$\boldsymbol{k+1}$个元素的绝对值。[/alert]
+
+\subsection{GMRES方法的收敛性分析}
+\label{sub:GMRES方法的收敛性分析}
+
+
+
+%[/aside_content]
+
+
+% H2, H3
+% \subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Jacobi Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	\For{$i\gets 1$ \KwTo $n$}{
+		$\delta\gets r_i/A_{ii}$\;
+		$x_i\gets x_i+\delta$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

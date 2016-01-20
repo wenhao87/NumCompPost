@@ -1,0 +1,124 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{基本迭代法的收敛性分析}
+
+上文（见求解线性方程组的基本迭代法一文）介绍了几种常用的求解[label]线性方程组[/label]的[label]迭代法[/label]，且它们都具有如下的[label]迭代格式[/label]：
+
+\begin{equation}
+\label{eq:iter}
+\boldsymbol{x}^{(k+1)}=G\boldsymbol{x}^{(k)}+\boldsymbol{f},\quad k=0,1,\cdots
+\end{equation}
+
+indent 其中，矩阵$G$称为[label]迭代矩阵[/label]。本文主要通过迭代矩阵$G$，对基本迭代法进行收敛性分析，包括：收敛的一致性问题、宏观收敛条件、收敛速度，以及部分特殊数据的收敛条件等。
+
+\subsection*{收敛的一致性问题}
+
+如果式（\ref{eq:iter}）的迭代收敛，则$\boldsymbol{x}$的极限满足$\boldsymbol{x}=G\boldsymbol{x}+\boldsymbol{f}$。另一方面，迭代格式是通过矩阵分裂$A=M-N$得到的，也就是说式（\ref{eq:iter}）等价于：
+
+\[\boldsymbol{x}^{(k+1)}=M^{-1}N\boldsymbol{x}^{(k)}+M^{-1}\boldsymbol{f}\]
+
+indent 且其极限满足$M\boldsymbol{x}=N\boldsymbol{x}+\boldsymbol{b}$，也就是线性方程组$A\boldsymbol{x}=\boldsymbol{b}$。所以说，如果迭代收敛的话，便可以说式（\ref{eq:iter}）的极限就是原线性方程组的解。
+
+\subsection*{收敛条件分析}
+
+根据迭代法的[label]误差传播方程[/label]（见求解线性方程组的基本迭代法一文），有：
+
+\begin{equation}
+\label{eq:err}
+\boldsymbol{x}^{(k+1)}-\boldsymbol{x}^\ast=G(\boldsymbol{x}^{(k)}-\boldsymbol{x}^\ast)=\cdots=G^{k+1}(\boldsymbol{x}^{(0)}-\boldsymbol{x}^{\ast})
+\end{equation}
+
+indent 其中，极限$\boldsymbol{x}^\ast$便是线性方程组的解。另一方面，当且仅当$\rho(G)<1$的时候，$I-G$非奇异，且矩阵序列$G^k,k=0,1,\cdots$收敛到$0$。它等价于$\boldsymbol{x}^{(k)}-\boldsymbol{x}^{\ast}$收敛到$0$，也等价于$\boldsymbol{x}^{(k)}$收敛到原线性方程组的解$\boldsymbol{x}^{\ast}$。所以，便有了如下的[label]迭代法基本定理[/label]：
+
+[alert type="info"]式（\ref{eq:iter}）迭代法对于任意初始向量$\boldsymbol{x}^{(0)}$都收敛的一个B充分必要条件是$\rho(G)<1$。[/alert]
+
+另一方面，如果迭代矩阵$G$的某一[label]算子范数[/label]满足$q\equiv\|G\|<1$，则迭代法对于任意初始向量$\boldsymbol{x}^{(0)}$都收敛。这也就是迭代法收敛的B充分条件。
+
+\subsection*{收敛速度分析}
+
+根据式（\ref{eq:err}）的误差传播方程，第$k$步迭代的[label]误差[/label]为$\boldsymbol{\epsilon}^{(k)}=G^{k}\boldsymbol{\epsilon}^{(0)}$。定义一个序列的[label]收敛因子[/label]为极限：
+
+\[\rho=\lim_{k\to\infty}\left(\dfrac{\|\boldsymbol{\epsilon^{(k)}}\|}{\|\boldsymbol{\epsilon^{(0)}}\|}\right)^{1/k}\]
+
+indent 它满足$\rho=\rho(G)$，并定义[label]收敛速度[/label]$\tau$为：
+
+\begin{equation}
+\label{eq:ratetau}
+\tau=-\ln\rho=-\ln\rho(G)
+\end{equation}
+
+indent 式（\ref{eq:ratetau}）收敛速度的定义B有赖于初始向量$\boldsymbol{x}^{(0)}$，因此也称为[label]特定收敛速度[/label]。相应地，[label]通用收敛速度[/label]可以定义为：
+
+\begin{equation}
+\label{eq:ratephi}
+\phi=\lim_{k\to\infty}\left(\max_{\boldsymbol{x}^{(0)}\in\mathbb{R}^n}\dfrac{\|\boldsymbol{\epsilon^{(k)}}\|}{\|\boldsymbol{\epsilon^{(0)}}\|}\right)^{1/k}=\lim_{k\to\infty}\left(\max_{\boldsymbol{x}^{(0)}\in\mathbb{R}^n}\dfrac{\|G^k\boldsymbol{\epsilon^{(0)}}\|}{\|\boldsymbol{\epsilon^{(0)}}\|}\right)^{1/k}=\lim_{k\to\infty}\left(\|G^{k}\|\right)^{1/k}=\rho(G)
+\end{equation}
+
+[alert type="info"]式（\ref{eq:ratephi}）的通用收敛速度比式（\ref{eq:ratetau}）的特定收敛速度更为常用。[/alert]
+
+\subsection*{特殊矩阵的收敛条件}
+
+\subsubsection*{对角占优矩阵}
+
+矩阵相关的几个基本概念一文中给出了[label]严格对角占优[/label]（strictly diagonally dominant）矩阵、[label]弱对角占优[/label]（weakly diagonally dominant）矩阵和[label]不可约[/label]（irreducible）矩阵的定义。同时满足弱对角占优和不可约的矩阵，称为[label]不可约的弱对角占优矩阵[/label]。
+
+如果$n \times n$阶矩阵$A$是B严格对角占优矩阵或B不可约的弱对角占优矩阵，则$A$是[label]非奇异[/label]的，并且对于任意的初始向量$\boldsymbol{x}^{(0)}$，相应的[label]Jacobi迭代法[/label]、[label]Gauss-Seidel迭代法[/label]，以及关于$0<\omega\leq 1$的[label]SOR迭代法[/label]B均收敛。
+
+\subsubsection*{对称正定矩阵}
+
+如果矩阵$A$是[label]对称正定矩阵[/label]（复数域上即为[label]Hermite矩阵[/label]），且$0<\omega<2$的话，则SOR迭代格式对任意初始向量$\boldsymbol{x}^{(0)}$都收敛。另一方面，如果SOR迭代格式对任意初始向量都收敛，则必有$0<\omega<2$。
+
+[alert type="info"]上述两个结论对于[label]SSOR迭代法[/label]也同样成立。[/alert]
+
+对于对称正定矩阵$A$，Gauss-Seidel迭代法也是收敛的，但Jacobi迭代法则不一定收敛，事实上，其收敛的充要条件为$2D-A$也是对称正定矩阵。
+
+对于任意初始向量$\boldsymbol{x}^{(0)}$以及不同的迭代格式，特殊矩阵的收敛条件总结如下：
+
+
+
+%\begin{eqnarray*}
+%& M=\dfrac{}
+%\end{eqnarray*}
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

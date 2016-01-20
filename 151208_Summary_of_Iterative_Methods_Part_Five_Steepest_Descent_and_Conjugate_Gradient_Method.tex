@@ -1,0 +1,206 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{迭代法整理（5）：最速下降}
+
+此前，以类似[label]广义极小残差[/label]（GMRES）方法（见迭代法整理（3）：GMRES方法的算法实现和分析一文）和[label]Arnoldi迭代方法[/label]（见迭代法整理（1）：Krylov子空间法和Arnoldi方法一文）的形式推导了[label]对称Lanczos迭代法[/label]（见迭代法整理（4）：对称Lanczos迭代法一文）。事实上，最初对称Lanczos迭代方法和共轭梯度（CG）方法之间的联系并没有完全被认识，后者是通过类似于本文所要介绍的方法（能量下降角度）推导而来的，即最速下降法（steepest descent）。
+
+\subsection*{最速下降法}
+
+在上文（见迭代法整理（4）：对称Lanczos迭代法一文）中提到，当矩阵$A$为[label]对称矩阵[/label]时，线性方程组$A\boldsymbol{x}=\boldsymbol{b}$的迭代求解等价于最小化[label]误差[/label]的[label]$A$-范数[/label]，因为后者又等价于极小化函数$\phi(\boldsymbol{x})$，即：
+
+\begin{equation}
+	\label{eq:phi}
+	\boldsymbol{x}_k =\text{argmin}_{\boldsymbol{x}}\phi(\boldsymbol{x})=\text{argmin}_{\boldsymbol{x}}\left( \frac{1}{2}\boldsymbol{x}^TA\boldsymbol{x}-\boldsymbol{x}^T\boldsymbol{b} \right)
+\end{equation}
+
+如果将$\boldsymbol{x}_k$表示为$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$的形式并代入式（\ref{eq:phi}），可知其在关于$\boldsymbol{y}$的一阶偏导数（即[label]梯度[/label]）为$0$时达到最小，因此最后问题转换为了求解$T_{k}\boldsymbol{y}_k=\hat{\boldsymbol{b}}$。这就是广义极小残差（GMRES）方法和对称Lanczos方法的核心思想，前者极小化残差的[label]$L_2$-范数[/label]，等价于极小化误差的$A^TA$-范数（用$A^TA$获得对称性），后者极小化误差的$A$-范数，并改进了$\boldsymbol{x}_k$的计算形式，即：$\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+p_k\boldsymbol{c}_k$，其中$\boldsymbol{c}_k$可通过$\boldsymbol{q}_k$和$\boldsymbol{c}_{k-1}$计算得到，因此避免了存储此前所有的基底向量。
+
+回到式（\ref{eq:phi}），如果不考虑[label]Krylov子空间[/label]和[label]Lanczos向量[/label]，只考虑[label]能量函数[/label]$\phi(\boldsymbol{x})$本身的话，希望也可以将$\boldsymbol{x}_k$表示为$\boldsymbol{x}_{k}=\boldsymbol{x}_{k-1}+\alpha_k\boldsymbol{p}_k$的形式，其中$\boldsymbol{p}_k$是第$k$步迭代时所使用的[label]搜索方向[/label]，并确定$\alpha_k$，使之能够极小化函数$\phi(\boldsymbol{x})$。
+
+首先，让能量在点$\boldsymbol{x}_{k-1}$处下降最快的方向是[label]负梯度[/label]方向（见方向导数与梯度一文），因此有：
+
+\begin{equation}
+	\label{eq:pk}
+	\boldsymbol{p}_k = -\nabla_{\boldsymbol{x}}\phi(\boldsymbol{x}_{k-1}) =
+	-\nabla_{\boldsymbol{x}}\left(
+		\dfrac{1}{2}\boldsymbol{x}_{k-1}^TA\boldsymbol{x}_{k-1}-\boldsymbol{x}_{k-1}^T\boldsymbol{b}
+	\right)=\boldsymbol{b}-A\boldsymbol{x}_{k-1} = \boldsymbol{r}_{k-1}
+\end{equation}
+
+进而，$\alpha_k$也可以通过函数$\phi(\boldsymbol{x}_{k})$关于$\alpha$的一阶偏导数为$0$来确定，即（矩阵$A$必须是对称矩阵）：
+
+\begin{equation}
+	\label{eq:alpha}
+	\begin{array}{rrcl}
+		& f(\alpha) & = & \phi(\boldsymbol{x}_{k-1}+\alpha\boldsymbol{p}_k) \\
+		& & = & \dfrac{1}{2}\boldsymbol{x}^T_{k-1}A\boldsymbol{x}_{k-1}-
+			\boldsymbol{x}^T_{k-1}\boldsymbol{b}+
+			\dfrac{\alpha^2}{2}\boldsymbol{p}^T_kA\boldsymbol{p}_k+
+			\alpha\boldsymbol{x}_{k-1}^TA\boldsymbol{p}_k-
+			\alpha\boldsymbol{p}_k^T\boldsymbol{b} \\
+		\Longrightarrow & \nabla_{\alpha}f(\alpha_k) & = &
+			\alpha_k\boldsymbol{p}_k^TA\boldsymbol{p}_k+
+			\boldsymbol{p}^T_kA\boldsymbol{x}_{k-1}-
+			\boldsymbol{p}_k^T\boldsymbol{b} =
+			\alpha_k\boldsymbol{p}_k^TA\boldsymbol{p}_k-
+			\boldsymbol{p}_k^T\boldsymbol{r}_{k-1} = 0 \\
+		\Longrightarrow & \alpha_k & = &
+			\left.
+				\dfrac{\boldsymbol{p}_k^T\boldsymbol{r}_{k-1}}{
+					\boldsymbol{p}_k^TA\boldsymbol{p}_k}
+			\right|_{\boldsymbol{p}_k=\boldsymbol{r}_{k-1}} =
+			\dfrac{(\boldsymbol{r}_{k-1},\boldsymbol{r}_{k-1})}{
+				(A\boldsymbol{r}_{k-1},\boldsymbol{r}_{k-1})}
+	\end{array}
+\end{equation}
+
+[alert type="success"]式（\ref{eq:pk}）证明函数$\phi(x)$在$\boldsymbol{x}_{k-1}$处的负梯度恰好等于它的残差，也就是说：第$k$步迭代时所使用的搜索方向$\boldsymbol{p}_k$即为第$k-1$步的残差$\boldsymbol{r}_{k-1}$。更重要的一点是，最速下降方法中，连续两个搜索方向$\boldsymbol{p}_{k}$和$\boldsymbol{p}_{k+1}$之间相互正交，理由见式（\ref{eq:pk1pk}）。[/alert]
+
+\begin{equation}
+	\label{eq:pk1pk}
+	\begin{aligned}
+		\boldsymbol{p}_{k}^T\boldsymbol{p}_{k+1} &=
+		\boldsymbol{r}_{k-1}^T\boldsymbol{r}_{k}=\boldsymbol{r}_{k-1}^T(\boldsymbol{b}-A\boldsymbol{x}_{k}) \\
+		&= \boldsymbol{r}_{k-1}^T(\boldsymbol{b}-A\boldsymbol{x}_{k-1}-\alpha_kA\boldsymbol{p}_k)=\boldsymbol{r}_{k-1}^T\boldsymbol{r}_{k-1}-\alpha_k\boldsymbol{r}_{k-1}^TA\boldsymbol{r}_{k-1}=0
+	\end{aligned}
+\end{equation}
+
+[alert type="error"]注意：最速下降法虽然很容易实现，但其收敛速度很慢，需要较多迭代步数，并且主要和矩阵$A$的[label]条件数[/label]有关，有时也和初始向量$\boldsymbol{x}_0$有关。其根本原因在于，不同于广义极小残差（GMRES）方法和共轭梯度（CG）方法，最速下降方法无法保证$\boldsymbol{x}_{k}$是在$\{\boldsymbol{p}_0,\boldsymbol{p}_1,\cdots,\boldsymbol{p}_{k-1}\}$所扩张的子空间上的极小值。但如果在此基础上附加一个限制条件的话（即[label]$A-$共轭[/label]搜索方向），便能得到很好的收敛性。[/alert]
+
+%[/aside_content]
+
+%[/aside_content]
+
+\subsection*{$A$-共轭搜索方向}
+
+由于最速下降法无法保证每一步迭代的结果是此前所有搜索方向扩张的子空间上的极小值，因而该方法的收敛性较差。在推导一种收敛性更好的方法之前，先考虑以下几个迭代法的特性：
+
+1. 第$k$步迭代时，希望只需要当前步的搜索方向$\boldsymbol{p}_k$来表示$\boldsymbol{x}_k$即可，即：
+
+\begin{equation}
+	\label{eq:xkpk}
+	\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+\alpha_k\boldsymbol{p}_k
+\end{equation}
+
+2. 第$k$步迭代时，希望$\boldsymbol{x}_k$是之前所有搜索方向上的最小值，即：
+
+\begin{equation}
+	\label{eq:minxk}
+	\boldsymbol{x}_k=P_k\boldsymbol{y}_k,\quad
+	\left\{\quad
+		\begin{aligned}
+			P_k &= (\boldsymbol{p}_1,\boldsymbol{p}_2,\cdots,\boldsymbol{p}_k) \\
+			f_k(\boldsymbol{y}) &= \phi(P_k\boldsymbol{y}) \\
+			\nabla_{\boldsymbol{y}}f_k(\boldsymbol{y}_k) &= 0 \\
+		\end{aligned}
+	\right.
+\end{equation}
+
+3. 第$k$步迭代的搜索方向$\boldsymbol{p}_k$能扩张Krylov子空间$\mathcal{K}_k$的第$k$个子空间；
+
+[alert type-="error"]注意：广义极小残差（GMRES）方法和最速下降法使用的都是B正交搜索方向，无法同时满足上面三个要求，而如果使用[label]$A-$正交[/label]搜索方向的话，则可以同时满足这些要求（$A$-）。[/alert]
+
+上文详细讨论的对称Lanczos方法已经证明其符合前两个特性（见迭代法整理（4）：对称Lanczos迭代法一文），这里将从函数$\phi(\boldsymbol{x}_k)$的角度出发来证明当搜索方向$A$-正交时，将同时满足特性$1$和$2$。理由如下：如果要同时满足这两个特性，那么结合式（\ref{eq:xkpk}）和式（\ref{eq:minxk}），并代入函数$\phi(\boldsymbol{x}_k)$的话，必须有：
+
+\begin{equation}
+	\label{eq:phixk}
+	\begin{aligned}
+		\phi(\boldsymbol{x}_k) &= \phi(\boldsymbol{x}_{k-1} + \alpha_k\boldsymbol{p}_k) = \phi(P_{k-1}\boldsymbol{y}_{k-1} + \alpha_k\boldsymbol{p}_k) \\
+		&= \phi(P_{k-1}\boldsymbol{y}_{k-1}) + \phi(\alpha_k\boldsymbol{p}_k) + \boldsymbol{y}_{k-1}^TP_{k-1}^TA(\alpha_k\boldsymbol{p}_k) \\
+	\end{aligned}
+\end{equation}
+
+观察式（\ref{eq:phixk}），由于$\boldsymbol{y}_{k-1}$极小化了函数$\phi(P_{k-1}\boldsymbol{y}_{k-1})$，$\alpha_k$极小化了函数$\phi(\alpha_k\boldsymbol{p}_k)$，因此第三项$\boldsymbol{y}_{k-1}^TP_{k-1}^TA(\alpha_k\boldsymbol{p}_k)$必须为$0$，也就等价于$P_{k-1}$中的向量都与$\boldsymbol{p}_k$$A$-正交，即：$\boldsymbol{p}_k^TA\boldsymbol{p}_i=0$，$i=1,2,\cdots,k-1$。由此得出如下重要结论：对于第$k$步的迭代$\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+\alpha_k\boldsymbol{p}_k$，只要搜索方向满足相互$A$-正交，则可以说$\boldsymbol{x}_k$同时也是$\phi$函数在所有搜索方向上能达到的极小值。
+
+[alert type="info"]式（\ref{eq:phixk}）推导的最后一步利用了如下性质：\[
+	\begin{aligned}
+		\phi(\boldsymbol{u} + \boldsymbol{v}) &=
+		\dfrac{1}{2}(\boldsymbol{u} + \boldsymbol{v})^TA(\boldsymbol{u} + \boldsymbol{v}) - (\boldsymbol{u} + \boldsymbol{v})^T\boldsymbol{b} \\
+		&= \dfrac{1}{2}\boldsymbol{u}^TA\boldsymbol{u} - \boldsymbol{u}^T\boldsymbol{b} + \dfrac{1}{2}\boldsymbol{v}^TA\boldsymbol{v} - \boldsymbol{v}^T\boldsymbol{b} + \boldsymbol{u}^TA\boldsymbol{v} \\
+		&= \phi(\boldsymbol{u}) + \phi(\boldsymbol{v}) + \boldsymbol{u}^TA\boldsymbol{v}
+	\end{aligned}
+\][/alert]
+
+最后需要解决的问题是，如何构造$A$-共轭的搜索方向。事实上，下一步的搜索方向与残差$\boldsymbol{r}_{k-1}$有关（可以利用[label]补子空间[/label]进行证明，这里从略）。
+
+\subsection*{共轭梯度（CG）方法的特性}
+
+如上所述，只要搜索方向满足$A$-正交，则$\boldsymbol{x}_k$可以表示为$\boldsymbol{x}_{k-1}+\alpha_k\boldsymbol{p}_k$的形式，与此同时也能保证$\boldsymbol{x}_k$是此前所有搜索方向上函数$\phi(\boldsymbol{x})$的极小值，即：$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$。
+
+如果假设$\boldsymbol{x}_0=0$，则有$\boldsymbol{p}_1=\boldsymbol{r}_0=\boldsymbol{b}$，那么对于共轭梯度（CG）方法而言，它同时还满足上述的第三个特性，即：
+
+\begin{equation}
+	\label{eq:span}
+	\text{span}\{\boldsymbol{p}_1,\boldsymbol{p}_2,\cdots,\boldsymbol{p}_k\} =
+	\text{span}\{\boldsymbol{b},\boldsymbol{r}_1,\cdots,\boldsymbol{r}_{k-1}\} =
+	\mathcal{K}_k
+\end{equation}
+
+[alert type="info"]式（\ref{eq:span}）（即特性$3$）可以通过反证法证明（证略）。该特性的重要性在于：由此可以确定在有限步迭代之后，线性方程组的解会在Krylov子空间内。[alert]
+
+除此以外，共轭梯度（CG）方法还满足一个特性，即：残差之间相互正交。其根本原因在于残差$\boldsymbol{r}_k=\boldsymbol{b}-A\boldsymbol{x}_k$正交于Krylov子空间，而由式（\ref{eq:span}）可知，Krylov子空间又可由$\{\boldsymbol{r}_i\}_{i=0}^{k-1}$扩张而成，则可以推得：
+
+\begin{equation}
+	\label{eq:rk}
+	\boldsymbol{r}_k^T\boldsymbol{r}_i=0,\quad i=0,1,\cdots,k-1
+\end{equation}
+
+综上所述，结合式（\ref{eq:pk1pk}、\ref{eq:xkpk}、\ref{eq:minxk}、\ref{eq:span}、\ref{eq:rk}），共轭梯度（CG）方法所满足的特性总结如下：
+
+1. $\text{span}\{\boldsymbol{p}_1,\boldsymbol{p}_2,\cdots,\boldsymbol{p}_k\} =
+\text{span}\{\boldsymbol{b},\boldsymbol{r}_1,\cdots,\boldsymbol{r}_{k-1}\} =
+\mathcal{K}_k$；
+
+2. $\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$ minimizes $\phi$ over $\mathcal{K}_k$；
+
+3. $\boldsymbol{p}_{i}^TA\boldsymbol{p}_j=0$ if $i \neq j,1 \leq i,j \leq k$；
+
+4. $\boldsymbol{r}_i^T\boldsymbol{r}_j=0$ if $i \neq j,1 \leq i,j \leq k$；
+
+\subsection*{SYMMLQ方法和MINRES方法}
+
+共轭梯度（CG）方法可以看作是对称Lanczos方法在矩阵为对称正定情况下的一种变形，而SYMMLQ方法和MINRES方法都应用于[label]对称未定[/label]矩阵上。如果在矩阵对称未定的情况下使用共轭梯度（CG）方法的话，则在三对角对称矩阵的分解过程中会出现主元为$0$的情况，导致算法提前终止。MINRES方法和SYMMLQ方法都避免了使用LU分解，其中MINRES方法极小化了残差的$L^2$-范数，而后者SYMMLQ求解的是一个投影方程组（残差之间互相正交），它在Krylov子空间上找寻函数$\phi$的梯度为$0$的点，因此它没有极小化任何范数。在收敛性上，MINRES方法由于像广义极小残差（GMRES）方法一样极小化了残差的$L^2$范数，因此它能单调收敛；而SYMMLQ方法由于没有极小化任何范数，因此其收敛性往往不是单调的。关于MINRES方法，将另文详细讨论。
+
+%[/aside_content]
+
+
+% H2, H3
+% \subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Jacobi Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	\For{$i\gets 1$ \KwTo $n$}{
+		$\delta\gets r_i/A_{ii}$\;
+		$x_i\gets x_i+\delta$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

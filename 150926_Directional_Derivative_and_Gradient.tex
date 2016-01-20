@@ -1,0 +1,163 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{共轭残差（CR）方法}
+
+\subsection*{方向导数}
+
+[label]多元函数[label]的[label]偏导数[/label]反映了函数值沿B坐标轴方向的变化率，但许多实际问题中往往还需要掌握函数在某点处沿某一B特定方向的变化率，这就引出了[label]方向导数[label]的概念。为了便于刻画方向，需要先引入方向余弦的概念。设$\boldsymbol{l}$是一个$n$维非零向量，令$\boldsymbol{l}_0=\boldsymbol{l}/\|\boldsymbol{l}\|$，则$\boldsymbol{l}_0$是与$\boldsymbol{l}$同向的[label]单位向量[/label]。取$0\leq\alpha_i\leq\pi$，使$\boldsymbol{l}_0=(\cos\alpha_1,\cdots,\cos\alpha_n)$满足$\cos^2\alpha_1+\cdots+\cos^2\alpha_n=1$，则称$\cos\alpha_1,\cdots,\cos\alpha_n$为向量$\boldsymbol{l}$的方向余弦。
+
+这里以二元函数为例，事实上它可以推广到多元函数。设$z=f(x,y)$为一个曲面，$P(x_0,y_0)$为定义域$f$内的一个点，$\boldsymbol{l}$是$xOy$平面上以$P(x_0,y_0)$为始点的一条射线，单位向量$\boldsymbol{l}_0=(\cos\alpha,\cos\beta)$与$\boldsymbol{l}$同方向，其中$\cos\alpha$和$\cos\beta$为$\boldsymbol{l}_0$的方向余弦。考虑$\boldsymbol{l}$方向的斜率。作一个通过点$P$，且平行于$\boldsymbol{l}$方向的垂直平面，该垂直平面与曲面$z=f(x,y)$相交于曲线$C$。而曲面在点$\big(x_0,y_0,f(x_0,y_0)\big)$上沿着$\boldsymbol{l}$方向的斜率就是曲线$C$在点$\big(x_0,y_0,f(x_0,y_0)\big)$的斜率。连接点$P(x_0,y_0)$与点$Q(x,y)$所得到的直线$L$可以用如下的参数式表示：
+
+\begin{equation}
+\label{eq:xy}
+\begin{cases}
+	& x  = x_0+t\cos\alpha \\
+	& y  = y_0+t\cos\beta \\
+\end{cases}
+\end{equation}
+
+indent其中，$t$为任意常数，$Q(x,y)$则是直线$L$上的任意一点。另外，点$P$和点$Q$之间的距离可以表示为：
+
+\begin{equation}
+\label{eq:pqdist}
+\sqrt{(x-x_0)^2+(y-y_0)^2}=\sqrt{(t\cos\alpha)^2+(t\cos\beta)^2}=|t|
+\end{equation}
+
+indent结合式（\ref{eq:xy}）和式（\ref{eq:pqdist}），则连接点$P$和点$Q$的直线$L$在曲面$C$上的切线斜率可以表示为：
+
+\begin{equation}
+\label{eq:tan}
+\dfrac{f(x,y)-f(x_0,y_0)}{t}=
+\dfrac{f(x_0+t\cos\alpha,y_0+t\cos\beta)-f(x_0,y_0)}{t}
+\end{equation}
+
+indent而当式（\ref{eq:tan}）中的$t$趋近于$0$时，便能得到如下的[label]方向导数[/label]（directional derivative）的定义：设$f(x,y)$为一个二元函数，$\boldsymbol{l}_0=(\cos\alpha,\cos\beta)$为一单位向量，如果式（\ref{eq:tan}）的极限值存在，则$f$在点$(x_0,y_0)$处沿着$\boldsymbol{l}$方向的方向导数即为该极限值，记为：
+
+\begin{equation}
+\label{eq:dddef}
+\begin{aligned}
+\left.D_{\boldsymbol{l}}f\right|_{(x_0,y_0)}=\left.\dfrac{\partial f}{\partial \boldsymbol{l}}\right|_{(x_0,y_0)} &= \lim_{t\to0}\dfrac{f(x_0+t\cos\alpha,y_0+t\cos\beta)-f(x_0,y_0)}{t} \\
+&= \lim_{\substack{\Delta x\to0\\\Delta y\to0}}\dfrac{f(x_0+\Delta x,y_0+\Delta y)-f(x_0,y_0)}{\sqrt{\Delta x^2+\Delta y^2}}
+\end{aligned}
+\end{equation}
+
+[alert type="info"]事实上，式（\ref{eq:tan}）便是方向导数的B几何意义：割线（平面与曲面的交线）在曲面对应点上关于$\boldsymbol{l}$方向的切线（若存在）的斜率，即为方向导数：$\tan\varphi=\partial f/\partial \boldsymbol{l}$。[/alert]
+
+最后，关于方向导数有如下一个B重要定理：如果函数$z=f(x,y)$在点$P(x_0,y_0)$处[label]可微[/label]，则函数在该点沿任意方向$\boldsymbol{l}_0$的方向导数都存在，且有：
+
+\begin{equation}
+\label{eq:ddfinal}
+\left.\dfrac{\partial f}{\partial \boldsymbol{l}}\right|_{(x_0,y_0)}=f_x(x_0,y_0)\cos\alpha+f_y(x_0,y_0)\cos\beta
+\end{equation}
+
+indent其中，$\cos\alpha$和$\cos\beta$为单位向量$\boldsymbol{l}_0$的方向余弦。理由如下：
+
+\begin{equation*}
+\begin{aligned}
+\Delta f &= f_x(x_0,y_0)\Delta x + f_y(x_0,y_0)\Delta y+o(t) \\
+&= t\cdot\big[f_x(x_0,y_0)\cos\alpha+f_y(x_0,y_0)\cos\beta\big]+o(t) \\
+\quad\Longrightarrow\quad
+&\left.\dfrac{\partial f}{\partial\boldsymbol{l}}\right|_{(x_0,y_0)}=\lim_{t\to0}\dfrac{\Delta f}{t}=f_x(x_0,y_0)\cos\alpha+f_y(x_0,y_0)\cos\beta
+\end{aligned}
+\end{equation*}
+
+\subsection*{梯度}
+
+设二元函数$z=f(x,y)$在点$P(x_0,y_0)$具有[label]偏导数[/label]，则称向量：
+
+\begin{equation}
+\big\{f_x(x_0,y_0),f_y(x_0,y_0)\big\}
+\end{equation}
+
+indent为函数$z=f(x,y)$在点$P$处的梯度（gradient），记作：
+
+\begin{equation}
+\label{eq:graddef}
+\nabla f=\text{grad}f=\left.\left(\dfrac{\partial f}{\partial x}\boldsymbol{i}+\dfrac{\partial f}{\partial y}\boldsymbol{j}\right)\right|_{(x_0,y_0)}=\left.\left(\dfrac{\partial f}{\partial x},\dfrac{\partial f}{\partial y}\right)\right|_{(x_0,y_0)}
+\end{equation}
+
+indent显然，结合式（\ref{eq:ddfinal}）和式（\ref{eq:graddef}），便可以得到方向导数和梯度的关系式，即：
+
+\begin{equation}
+D_{\boldsymbol{l}}f(x,y)=\nabla f(x,y)\cdot \boldsymbol{l}_0=\|\nabla f(x,y)\|\cdot\|\boldsymbol{l}_0\|\cdot\cos\theta
+\end{equation}
+
+indent其中$\theta$为梯度$\nabla f(x,y)$和单位向量$\boldsymbol{l}_0$之间的夹角。显然，当$\cos\theta=1$时（$\theta=0$），$D_{\boldsymbol{l}}f(x,y)$取到最大值，此时$\boldsymbol{l}_0$和梯度$\nabla f(x,y)$方向相同；而当$\cos\theta=-1$时（$\theta=\pi$），$D_{\boldsymbol{l}}f(x,y)$取到最小值，此时$\boldsymbol{l}_0$和梯度$\nabla f(x,y)$方向相反，即负梯度方向。所以，梯度的几何意义在于：就方向而言，它朝着使得函数$f(x,y)$在$P(x_0,y_0)$处有B最大方向导数的那个方向，此时函数值增加最快；就长度而言，其长度为那个最大方向导数的值。
+
+\subsection*{小结}
+
+\subsubsection*{方向导数计算公式}
+
+- 二元函数$f(x,y)$在点$P(x,y)$沿方向$\boldsymbol{l}$（方向角为$\alpha,\beta$）的方向导数为：
+
+\[
+\dfrac{\partial f}{\partial \boldsymbol{l}}=\dfrac{\partial f}{\partial x}\cos\alpha+\dfrac{\partial f}{\partial y}\cos\beta
+\]
+
+- 三元函数$f(x,y,z)$在点$P(x,y,z)$沿方向$\boldsymbol{l}$（方向角为$\alpha,\beta,\gamma$）的方向导数为：
+
+\[
+\dfrac{\partial f}{\partial \boldsymbol{l}}=\dfrac{\partial f}{\partial x}\cos\alpha+\dfrac{\partial f}{\partial y}\cos\beta+\dfrac{\partial f}{\partial z}\cos\gamma
+\]
+
+\subsubsection*{梯度}
+
+- 二元函数$f(x,y)$在点$P(x,y)$处的梯度为
+
+\[\nabla f=\text{grad}f=\left(\dfrac{\partial f}{\partial x},\dfrac{\partial f}{\partial y}\right)\]
+
+- 三元函数$f(x,y,z)$在点$P(x,y,z)$处的梯度为
+
+\[\nabla f=\text{grad}f=\left(\dfrac{\partial f}{\partial x},\dfrac{\partial f}{\partial y},\dfrac{\partial f}{\partial z}\right)\]
+
+\subsubsection*{关系}
+
+\[\dfrac{\partial f}{\partial \boldsymbol{l}}=\nabla f \cdot\boldsymbol{l}_0\]
+
+
+%[aside_content]
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

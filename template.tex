@@ -1,0 +1,188 @@
+\documentclass{article}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+
+\usepackage{verbatim}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+\tableofcontents
+
+\begin{align}
+a_0&=b_0\,, &b_0&=c_0\,, &c_0&=d_0\,,\\ a_1&=b_1\,, &b_1&=c_1\,, &c_1&=d_1\,,\\ a_2&=b_2\,, &b_2&=c_2\,, &c_2&=d_2\,.
+\end{align}
+
+\[ n! =
+ \left\{
+   \begin{aligned}
+      & 1               && \text{if $n \leq 1$}\,, & 12\\
+      & n \times (n-1)! && \text{otherwise}\,. & 123123
+   \end{aligned}
+ \right. \]
+
+\[\binom{100}{safas}\]
+
+... Using matrices the linear transformation $\langle\,x,y\,\rangle
+\mapsto
+\langle\,2 x + y, 3 y\,\rangle$
+is written as follows:
+$\bigl[\begin{smallmatrix} 2&1 \\ 0&3 \end{smallmatrix}
+\bigr]
+\bigl[\begin{smallmatrix} x \\ y \end{smallmatrix}
+\bigr]$.
+You probably knew this already. ...
+
+% array stretch
+
+\begin{equation}
+\renewcommand\arraystretch{1.5}
+\begin{array}{lcl}
+\nu_k=\dfrac{(\boldsymbol{r}_k,\boldsymbol{r}_k)}{(A\boldsymbol{d}_k,\boldsymbol{d}_k)} & \to &
+\boldsymbol{x}_{k+1}=\boldsymbol{x}_k+\nu_k\boldsymbol{d}_k \\
+\omega_k=\dfrac{(\boldsymbol{r}_{k+1},\boldsymbol{r}_{k+1})}{(\boldsymbol{r}_k,\boldsymbol{r}_k)} & \to &
+\boldsymbol{d}_{k+1}=\boldsymbol{r}_{k+1}+\omega_k\boldsymbol{d}_k
+\end{array}
+\end{equation}
+
+\begin{eqnarray*}
+    &x + (y - 2)^4 = w^2 \\
+    &(x  - 9)^2 + y_2^2 = w^2 \\
+    &x + (y - 2)^4 = w^2 = (x  - 9)^2 + y_2^2 \\
+\end{eqnarray*}
+
+\begin{align}
+\label{eq:trisys}
+\begin{split}
+a_{i-1}x_{i-2}+b_{i-1}x_{i-1}+c_{i-1}x_{i} &= f_{i-1} \\
+a_ix_{i-1}+b_ix_i+c_ix_{i+1} &= f_i \\
+a_{i+1}x_{i}+b_{i+1}x_{i+1}+c_{i+1}x_{i+2} &= f_{i+1}
+\end{split}
+\end{align}
+
+% \hline, \multicolumn, \multirow, \xrightarrow
+\addcontentsline{toc}{subsection}{Use of \textbackslash hline, \textbackslash multicol, \textbackslash multirow, \textbackslash xrightarrow }
+\subsection*{Use of \textbackslash hline, \textbackslash multicol, \textbackslash multirow, \textbackslash xrightarrow }
+
+\begin{align*}
+A=\left(\begin{array}{cc|cc|cc}
+	\ast&\ast&\ast&\ast&\ast&\ast\\
+	\ast&\ast&\ast&\ast&\ast&\ast\\
+	\ast&\ast&\ast&\ast&\ast&\ast\\
+	\ast&\ast&\ast&\ast&\ast&\ast\\
+	\ast&\ast&\ast&\ast&\ast&\ast\\
+	\ast&\ast&\ast&\ast&\ast&\ast
+\end{array}\right)
+=&\left(\begin{array}{c|c|c}
+	\multirow{6}{*}{$A_1$} & \multirow{6}{*}{$A_2$} & \multirow{6}{*}{$A_3$} \\
+	&&\\&&\\&&\\&&\\&&
+\end{array}\right)\\
+\xrightarrow[\text{get }L_1,U_1\text{ with }P_1A=L_1U_1]{\text{find }P_1\text{ with }b=2\text{ times permt.}}
+&\left(\begin{array}{cc|cc|cc}
+	\ast'&\ast'&\ast'&\ast'&\ast'&\ast' \\
+	l_{21}&\ast'&\ast'&\ast'&\ast'&\ast' \\ \hline
+	l_{31}&l_{32}&\ast'&\ast'&\ast'&\ast' \\
+	l_{41}&l_{42}&\ast'&\ast'&\ast'&\ast' \\
+	l_{51}&l_{52}&\ast'&\ast'&\ast'&\ast' \\
+	l_{61}&l_{62}&\ast'&\ast'&\ast'&\ast'
+\end{array}\right)\\
+=&\left(\begin{array}{cc|cccc}
+	&U_1&\ast'&\ast'&\ast'&\ast'\\
+	L_{11}&&\ast'&\ast'&\ast'&\ast'\\ \hline
+	\multicolumn{2}{c|}{\multirow{4}{*}{$L_{21}$}}&\ast'&\ast'&\ast'&\ast'\\
+	\multicolumn{2}{c|}{}&\ast'&\ast'&\ast'&\ast'\\
+	\multicolumn{2}{c|}{}&\ast'&\ast'&\ast'&\ast'\\
+	\multicolumn{2}{c|}{}&\ast'&\ast'&\ast'&\ast'\\
+\end{array}\right)
+=\left(\begin{array}{cc|cccc}
+	&U_1&\multicolumn{4}{c}{\multirow{2}{*}{$A_{1s1}$}}\\
+	L_{11}&&\quad&\quad&\quad&\quad\\ \hline
+	\multicolumn{2}{c|}{\multirow{4}{*}{$L_{21}$}}&\multicolumn{4}{c}{\multirow{4}{*}{$A_{1s2}$}}\\
+	\multicolumn{2}{c|}{}&\multicolumn{4}{c}{}\\
+	\multicolumn{2}{c|}{}&\multicolumn{4}{c}{}\\
+	\multicolumn{2}{c|}{}&\multicolumn{4}{c}{}\\
+\end{array}\right)\\
+\xrightarrow[\text{to get }A^{(1)}]{\text{update }A_{1s1},A_{1s2}}&
+\left(\begin{array}{cc|cccc}
+	&U_1&\multicolumn{4}{c}{\multirow{2}{*}{$A'_{1s1}\gets L_{11}^{-1}A_{1s1}$}}\\
+	L_{11}&&\quad&\quad&\quad&\quad\\ \hline
+	\multicolumn{2}{c|}{\multirow{4}{*}{$L_{21}$}}&\multicolumn{4}{c}{\multirow{4}{*}{$A'_{1s2}\gets A_{1s2}-L_{21}A'_{1s1}$}}\\
+	\multicolumn{2}{c|}{}&\multicolumn{4}{c}{}\\
+	\multicolumn{2}{c|}{}&\multicolumn{4}{c}{}\\
+	\multicolumn{2}{c|}{}&\multicolumn{4}{c}{}\\
+\end{array}\right)=A^{(1)}
+\end{align*}
+
+% simple algorithm
+\addcontentsline{toc}{subsection}{Simple algorithm with \texttt{algorithm2e}}
+\subsection*{Simple algorithm with \texttt{algorithm2e}}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+
+% algorithm
+\addcontentsline{toc}{subsection}{Complex algorithm with \texttt{algorithm2e}}
+\subsection*{Complex algorithm with \texttt{algorithm2e}}
+
+\IncMargin{1em}
+\TitleOfAlgo{How to write algorithms}
+\begin{algorithm}[H]
+\KwData{this text}
+\KwResult{how to write algorithm with \LaTeX2e }
+\SetKwData{Left}{left}\SetKwData{This}{this}\SetKwData{Up}{up}
+\SetKwFunction{Union}{Union}\SetKwFunction{FindCompress}{FindCompress}
+\SetKwInOut{Input}{input}\SetKwInOut{Output}{output}
+\Input{A bitmap $Im$ of size $w\times l$}
+\Output{A partition of the bitmap}
+\BlankLine
+\emph{special treatment of the first line}\;
+\For{$i\leftarrow 2$ \KwTo $l$}{
+	\emph{special treatment of the first element of line $i$}\;
+	\For{$j\leftarrow 2$ \KwTo $w$}{
+		\label{forins}
+		\Left$\leftarrow$ \FindCompress{$Im[i,j-1]$}\;
+		\Up$\leftarrow$ \FindCompress{$Im[i-1,]$}\;
+		\This$\leftarrow$ \FindCompress{$Im[i,j]$}\;
+		\If(\tcp*[h]{O(\Left,\This)==1}){\Left compatible with \This}{
+			\label{lt}
+        	\lIf{\Left $<$ \This}{\Union{\Left,\This}}\;
+			\lElse{\Union{\This,\Left}\;}
+		}
+		\If(\tcp*[f]{O(\Up,\This)==1}){\Up compatible with \This}{
+			\label{ut}
+			\lIf{\Up $<$ \This}{\Union{\Up,\This}}\;
+			\tcp{\This is put under \Up to keep tree as flat as possible}
+			\label{cmt}
+			\lElse{\Union{\This,\Up}}\tcp*[r]{\This linked to \Up}
+			\label{lelse}
+		}
+	}
+	\lForEach{element $e$ of the line $i$}{\FindCompress{p}}
+}
+\label{algo_disjdecomp}
+\end{algorithm}
+\DecMargin{1em}
+
+\end{document}

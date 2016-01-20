@@ -1,0 +1,216 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{基于Householder正交化方法的Arnoldi算法}
+
+%[aside_content]
+
+上文讨论了[label]线性无关[/label]向量组的[label]Householder正交化[/label]过程及其算法（见线性无关向量组的Householder正交化一文），本文将Householder正交化应用于[label]Krylov子空间[/label]$\mathcal{K}_m$上，从而得到基于Householder正交化方法的[label]Arnoldi算法[/label]，而与之相对应的是基于[label]Gram-Schmidt正交化[/label]方法的Arnoldi算法（可参考基于经典Gram-Schmidt正交化方法的Arnoldi算法一文）。本文最后，对目前为止几种讨论了的Arnoldi方法进行了小结。
+
+Arnoldi方法进行了小结，包括已经讨论
+
+\subsection*{Householder正交化原理}
+
+如上文所述（见线性无关向量组的Householder正交化一文），对于一个$n \times m$阶[label]列满秩[/label]矩阵$X=(\boldsymbol{x}_1,\boldsymbol{x}_2,\cdots,\boldsymbol{x}_m)$，其正交化过程可以表述为：令$\boldsymbol{r}_1=\boldsymbol{x}_1$，构造[label]Householder矩阵[/label]，将其左乘$\boldsymbol{r}_1$后得到新的后$n-1$个分量为$0$的$\boldsymbol{r}_1$；并计算$\boldsymbol{q}_1=P_1\boldsymbol{e}_1$；而从第$k=2$步开始，先通过将$P_{k-1}\cdots P_1$左乘$\boldsymbol{x}_k$，得到当前步的$\boldsymbol{r}_k$，并以此构造Householder矩阵$P_k$，将其左乘$\boldsymbol{r}_k$后，即得到新的$\boldsymbol{r}_k$，而$\boldsymbol{q}_k$则通过$P_1\cdots P_k$左乘$\boldsymbol{e}_k$得到。重复该过程$m$次，便能实现矩阵$X$的Householder正交化分解：
+
+\[
+X=P^T\begin{pmatrix}R\\0\end{pmatrix}=P^TE_mR=QR,\quad
+\begin{cases}
+P=P_mP_{m-1}\cdots P_1 \\
+E_m=\begin{pmatrix}I_m\\0\end{pmatrix}_{n \times m} \\
+Q=P^TE_m=(\boldsymbol{q}_1,\boldsymbol{q}_2,\cdots,\boldsymbol{q}_m)\in\mathbb{R}^{n \times m}
+\end{cases}
+\]
+
+线性无关向量组的Householder正交化分解算法可以描述为：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Householder Orthogonalization}
+\begin{algorithm}[H]
+\For{$k\gets 1$ \KwTo $m$}{
+	\If{$k>1$}{$\boldsymbol{r}_k\gets P_{k-1}P_{k-2}\cdots P_1\boldsymbol{x}_k$\;}
+	construct $P_k$\;
+	$\boldsymbol{r}_k\gets P_k\boldsymbol{r}_k$\;
+	$\boldsymbol{q}_k\gets P_1P_2\cdots P_k\boldsymbol{e}_k$\;
+}
+\end{algorithm}
+%[/latex]
+
+\subsection*{Krylov子空间的正交化}
+
+给定一个Krylov子空间：$\mathcal{K}_m(A,\boldsymbol{v}_1)=\text{span}\{\boldsymbol{v}_1,A\boldsymbol{v}_1,A^2\boldsymbol{v}_1,\cdots,A^{m-1}\boldsymbol{v}_1\}$，希望通过Householder正交化后求得$\mathcal{K}_m$的[label]标准正交基[/label]$\mathcal{K}_m=\text{span}\{\boldsymbol{v}_1,\boldsymbol{v}_2,\cdots,\boldsymbol{v}_m\}$。不同于线性无关向量组$X=\{\boldsymbol{x}_1,\boldsymbol{x}_2,\cdots,\boldsymbol{x}_m\}$的Householder正交化，Krylov子空间中待正交化的列向量$A^k\boldsymbol{v}_1$$(k=1,\cdots,m-1)$事先并不知道，事实上也并不需要直接计算。正如基于经典Gram-Schmidt正交化方法的Arnoldi算法一文中提到的，$A\boldsymbol{v}_k$包含有成分$A^k\boldsymbol{v}_1$，则标准正交基中的向量$\boldsymbol{v}_{k+1}$可以表示成$\boldsymbol{v}_1,\cdots,\boldsymbol{v}_k,A\boldsymbol{v}_k$的线性组合。
+
+\subsection*{Krylov子空间的Householder正交化}
+
+\subsubsection*{基于Householder正交化的Arnoldi算法思想}
+
+类比前面的Householder正交化算法，Krylov子空间$\mathcal{K}(A,\boldsymbol{v}_1)$的Householder正交化方法可以描述为：
+
+- 假定$\|\boldsymbol{v}_1\|_2=1$，令$\boldsymbol{z}_1=\boldsymbol{v}_1$，并构造Householder矩阵$P_1$，使得$\boldsymbol{h}_0=P_1\boldsymbol{z}_1$的后$n-1$个分量为$0$，更新$\boldsymbol{v}_1$为$\boldsymbol{v}_1=P_1\boldsymbol{e}_1$，由于第$j=2$步正交化$A\boldsymbol{v}_1$时，需要先将其左乘$P_1$，所以可以由已经得到的$\boldsymbol{v}_1$先计算$P_1A\boldsymbol{v}_1$，并令其为$\boldsymbol{z}_2$，即：$\boldsymbol{z}_2=P_1A\boldsymbol{v}_1$；
+
+- 第$j=2$步对$A\boldsymbol{v}_1$正交化，针对上一步最后得到的$\boldsymbol{z}_2$，构造Householder矩阵$P_2$，使得$h_1=P_2\boldsymbol{z}_2$的后$n-2$个分量为$0$，得到$\boldsymbol{v}_2$为$\boldsymbol{v}_2=P_1P_2\boldsymbol{e}_2$，同样，为了正交化第$j=3$步的$A\boldsymbol{v}_2$，需要先将其左乘$P_2P_1$，所以可以由已经得到的$\boldsymbol{v}_2$先计算$\boldsymbol{z}_3=P_2P_1A\boldsymbol{v}_2$；
+
+- 为了说明基于Householder正交化的Arnoldi算法和基于Gram-Schmidt正交化的Arnoldi算法在数学上是等价的，需要重复上述过程直至最后完成对$A\boldsymbol{v}_m$的正交化。所以，总的迭代步数为$m+1$次，但在第$j=m+1$步中，不需要计算$\boldsymbol{z}_{m+1}$。
+
+\subsubsection*{基于Householder正交化的Arnoldi算法实现}
+
+上述的正交化过程便是基于Householder正交化的Arnoldi算法。对于给定的$n \times n$阶矩阵$A$以及正整数$m$，取$\|\boldsymbol{v}_1\|_2=1$，且$\boldsymbol{z}_1=\boldsymbol{v}_1$，则算法实现如下（其中Householder矩阵$P_j$的构造可参考正交变换：Householder和Givens变换一文）：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Householder Arnoldi}
+\begin{algorithm}[H]
+\For{$j\gets 1$ \KwTo $m+1$}{
+	construct $P_j$ for $\boldsymbol{z}_j$\;
+	$\boldsymbol{h}_{j-1}\gets P_j\boldsymbol{z}_j$\;
+	$\boldsymbol{v}_j\gets P_1\cdots P_j\boldsymbol{e}_j$\;
+	\If{$j \leq m$}{$\boldsymbol{z}_{j+1}\gets P_j\cdots P_1A\boldsymbol{v}_j$\;}
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{基于Householder正交化的Arnoldi算法分析}
+
+上述的算法，实际上可以看作是对如下线性无关向量组的Householder正交化：
+
+\[
+\left(\boldsymbol{v}_1,A\boldsymbol{v}_1,A^2\boldsymbol{v}_1,\cdots,A^{m-1}\boldsymbol{v}_1,A^m\boldsymbol{v}_1\right) \quad\Longleftrightarrow\quad
+\left(\boldsymbol{v}_1,A\boldsymbol{v}_1,A\boldsymbol{v}_2,\cdots,A\boldsymbol{v}_{m-1},A\boldsymbol{v}_m\right)
+\]
+
+indent因此，它可以表示为[label]QR分解[/label]的矩阵形式。考虑第$j+1$列向量$A\boldsymbol{v}_j$（$j=1,\cdots,m$），根据上述算法可以得到如下关系式：
+
+\begin{align}
+\label{eq:zh}
+\begin{split}
+\boldsymbol{z}_{j+1} &= P_j\cdots P_1(A\boldsymbol{v}_j) \\
+\boldsymbol{h}_j &= P_{j+1}\boldsymbol{z}_{j+1}=P_{j+1}P_j\cdots P_1(A\boldsymbol{v}_j)
+\end{split}
+\end{align}
+
+indent需要注意的是，$P_{j+1}$消除了$\boldsymbol{z}_{j+1}$的后$n-{j+1}$个分量，换言之，$\boldsymbol{h}_j$的后$n-(j+1)$个分量为$0$，且其前面$j+1$个分量在之后的正交化过程中不改变。而Householder矩阵$P_i$的左上角$(i-1)\times(i-1)$阶子矩阵是[label]单位矩阵[/label]$I_{i-1}$。所以，当$i-1\geq j+1$，也就是$i\geq j+2$时，始终有$P_i\boldsymbol{h}_j=\boldsymbol{h}_j$。那么，式（\ref{eq:zh}）中的$\boldsymbol{h}_j$连续左乘$\{P_i\}_{i=j+2}^m$，其结果仍为$\boldsymbol{h}_j$，即：
+
+\begin{align}
+\label{eq:hqv}
+\begin{split}
+\boldsymbol{h}_j&=P_m\cdots P_{j+2}\boldsymbol{h}_j \\
+&=P_m\cdots P_{j+2}P_{j+1}P_j\cdots P_1(A\boldsymbol{v}_j) \\
+&=Q_m(A\boldsymbol{v}_j)
+\end{split}
+\end{align}
+
+indent其中，$Q_m=P_mP_{m-1}\cdots P_1$，且式（\ref{eq:hqv}）可以写成如下的QR分解矩阵形式：
+
+\[
+Q_m\big(\boldsymbol{v}_1,A\boldsymbol{v}_1,\cdots,A\boldsymbol{v}_m\big)=\
+\big(\boldsymbol{h}_0,\boldsymbol{h}_1,\cdots,\boldsymbol{h}_m\big)
+\]
+
+另一方面，由于$\boldsymbol{h}_j$的后$n-(j+1)$个分量为$0$，所以只需关注前$j+1$个分量即可。那么，可以将$\boldsymbol{h}_j$表示为$\boldsymbol{h}_j=\sum_{i=1}^{j+1}h_{ij}\boldsymbol{e}_i$。于是，可以将式（\ref{eq:zh}）中的$A\boldsymbol{v}_j$改写为：
+
+\begin{align}
+\label{eq:avq}
+\begin{split}
+A\boldsymbol{v}_j&=(P_{j+1}\cdots P_1)^T\boldsymbol{h}_j=P_1\cdots P_{j+1}\boldsymbol{h}_j \\
+&=P_1\cdots P_{j+1}\sum_{i=1}^{j+1}h_{ij}\boldsymbol{e}_i=\sum_{i=1}^{j+1}h_{ij}\left(P_1\cdots P_{j+1}\boldsymbol{e}_i\right)
+\end{split}
+\end{align}
+
+indent考察$P_1\cdots P_{j+1}\boldsymbol{e}_i$，由于Householder矩阵$P_k$的左上角$(k-1)\times(k-1)$阶子矩阵是单位矩阵$I_{k-1}$，因此当$k-1 \geq i$，即$k \geq i+1$时，总有$P_k\boldsymbol{e}_i=\boldsymbol{e}_i$。因而有：
+
+\begin{align}
+\label{eq:pev}
+\begin{split}
+P_1\cdots P_{j+1}\boldsymbol{e}_i&=(P_1\cdots P_i)(P_{i+1}\cdots P_{j+1})\boldsymbol{e}_i \\
+&=P_1\cdots P_i\boldsymbol{e}_i=\boldsymbol{v}_i
+\end{split}
+\end{align}
+
+indent结合式（\ref{eq:avq}）和式（\ref{eq:pev}），便可以得到：
+
+\begin{equation}
+\label{eq:avh}
+A\boldsymbol{v}_j=\sum_{i=1}^{j+1}h_{ij}\boldsymbol{v}_i,\quad j=1,\cdots,m\quad\Longleftrightarrow\quad AV_m=V_{m+1}\bar{H}_m
+\end{equation}
+
+indent其中，$V_m=(\boldsymbol{v}_1,\boldsymbol{v}_2,\cdots,\boldsymbol{v}_m)$，$\bar{H}_m$是由$n \times m$阶矩阵$(\boldsymbol{h}_1,\boldsymbol{h}_2,\cdots,\boldsymbol{h}_m)$的前$m+1$行构成的$(m+1)\times m$阶矩阵。而式（\ref{eq:avh}）也和基于Gram-Schmidt正交化的Arnoldi算法（见基于经典Gram-Schmidt正交化方法的Arnoldi算法一文）得到的结果一致，说明了两者在数学上是等价的。
+
+\subsection*{Arnoldi方法小结}
+
+尽管基于Householder正交化的Arnoldi算法比基于Gram-Schmidt正交化的更稳定，但计算量却要的很多。如前面的算法所示，计算的工作量主要集中在第$4$和第$6$行，它需要连续执行Householder矩阵$P_i$（$i=1,\cdots,j$）左乘$\boldsymbol{e}_j$；同样，还需将$P_i$（$i=j,j-1,\cdots,1$）连续左乘$A\boldsymbol{v}_j$。正如前文提到的（见线性无关向量组的Householder正交化一文），Householder矩阵和一个向量的乘积本质是一个BLAS-1的向量内积计算：
+
+\begin{align}
+\label{eq:pixi}
+\begin{split}
+P_{i}\boldsymbol{x}_i&=\text{diag}(I_{i-1},\tilde{P}_i)(x_1,x_2,\cdots,x_{i-1},\tilde{\boldsymbol{x}}^T_i)^T=\left(x_1,x_2,\cdots,x_{i-1},(\tilde{P}_i\tilde{\boldsymbol{x}}_i)^T\right)^T \\
+\tilde{P}_i\tilde{\boldsymbol{x}}_i&=\left(I_{n-i+1}-\beta_i\tilde{\boldsymbol{v}}_i\tilde{\boldsymbol{v}}_i^T\right)\tilde{\boldsymbol{x}}_i=\tilde{\boldsymbol{x}}_i-\left[\beta_i(\tilde{\boldsymbol{v}}_i^T\tilde{\boldsymbol{x}}_i)\right]\tilde{\boldsymbol{v}}_i
+\end{split}
+\end{align}
+
+indent其中，$\tilde{\boldsymbol{v}}_i$和$\tilde{\boldsymbol{x}}_i$都是$n-i+1$维向量，因此，$P_i\boldsymbol{x}_i$所需要的乘法次数为$(n-i+1)+1+(n-i+1)=2n-2i+3$。于是，计算算法第$4$行和第$6$行所需的乘法次数均为$\sum_{i=1}^{j}(2n-2i+3)=2nj-j^2+2j$。此外，考虑算法第$3$行$P_j\boldsymbol{z}_j$的计算量，和式（\ref{eq:pixi}）的计算方式相同，区别在于$P_j\boldsymbol{z}_j$只改变了$\boldsymbol{z}_j$中第$j$个元素$z_j$，前$j-1$个元素不变，而后$n-j$个元素均为$0$，因此其乘法计算次数只需要$1+(n-j+1)+1=n-j+3$。最后，总的乘法次数可以写为（不考虑$A\boldsymbol{v}_j$的计算量）：
+
+\begin{align*}
+& \sum_{j=1}^{m+1}\Big((n-j+3)+2(2nj-j^2+2j)\Big) \\
+\approx\quad& \sum_{j=1}^{m+1}\Big(4nj-2j^2\Big)=4n\dfrac{(m+2)(m+1)}{2}-2\dfrac{(m+1)(m+2)(2m+3)}{6} \\
+\approx\quad& \mathcal{O}\Big(2nm^2-\dfrac{2m^3}{3}\Big)
+\end{align*}
+
+[alert type="info"]对于基于Householder正交化的Arnoldi方法，其BLAS-2级别的实现和线性无关向量组的Householder正交化类似（见线性无关向量组的Householder正交化一文），但其BLAS-3级别以及分布式内存的并行实现则相当困难。
+
+下表总结了不同正交化过程的Arnoldi方法所需的计算量和存储量，其中GS代表Gram-Schmidt正交化，MGS代表改进的Gram-Schmidt正交化，MGSR代表二次正交的改进Gram-Schmidt正交化，而HO则代表Householder正交化：
+
+需要指出的是，二次正交的改进Gram-Schmidt正交化（modified Gram-Schmidt with reorthogonalization），也称为双正交化。和改进的Gram-Schmidt正交化方法的区别在于，它需要额外计算$\boldsymbol{w}_j$的范数，如果它和初始的$\boldsymbol{w}_j$也就是$\|A\boldsymbol{v}_j\|_2$的比值小于某个阈值，则可能产生较大误差，此时需进行第二次正交化。二次正交的改进Gram-Schmidt正交化和Householder正交化方法，在数值稳定性上都比Gram-Schmidt正交化方法要好，但通常前两者的计算量也会相应大一些。
+
+[alert type="info"]一般来说，Householder正交化方法适合求解特征值问题，而如果是求解线性方程组的话，使用改进的Gram-Schmidt正交化，或者配合二次正交化，便足够了。[/alert]
+
+%[/aside_content]
+
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

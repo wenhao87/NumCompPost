@@ -1,0 +1,299 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{FOM}
+
+%[aside_content]
+
+上文介绍了[label]线性方程组[/label]$A\boldsymbol{x}=\boldsymbol{b}$的[label]Arnoldi方法[/label]（见线性方程组的Arnoldi方法之：FOM一文），其核心思想是以初始向量$\boldsymbol{x}_0$所对应的初始[label]残差[/label]$\boldsymbol{r}_0$为[label]Krylov子空间[/label]$\mathcal{K}_m$的[label]种子向量[/label]，然后以[label]Galerkin条件[/label]（$\boldsymbol{b}-A\boldsymbol{x}_m\perp\mathcal{K}_m$）为限制，利用[label]改进的Gram-Schmidt正交化方法[/label]对该Krylov子空间进行正交化，得到该子空间的一组[label]基底向量[/label]$V_m$，由此便可以计算得到线性方程组的近似解$\boldsymbol{x}_m$。这种方法也称为[label]完全正交化方法[/lable]（Full Orthogonalization Method, [label]FOM[/label]）。
+
+上文文末也提到，完全正交化方法（FOM）在$m$的选取上受计算量和存储量的限制。所以，一般有两种改进的方法。一种是当一次FOM完成后，如果$\boldsymbol{x}_m$的残差过大，则重新开始新一轮的FOM过程，这种方法也称为[label]重新开始的FOM方法[/label]（Restarted FOM）；另一种方法则是“缩减”正交化的工作量，也就是说在Krylov子空间$\mathcal{K}_m$的正交化过程中，向量$\boldsymbol{v}_i$只需与一部分（通常为前$k$个）向量正交，这种方法便是本文所要介绍的[label]不完全正交化方法[/label]（[label]IOM[/label]），它有一种变形称为[label]直接不完全正交分解方法[/label]（[label]DIOM[/label]）。
+
+\subsection*{不完全正交化方法（IOM）}
+
+\subsubsection*{不完全正交化方法（IOM）算法实现}
+
+Arnoldi方法的核心内容是Krylov子空间$\mathcal{K}_m$的正交化，通常使用的是基于改进的Gram-Schmidt正交化方法。从上面的描述中可以看到，不完全正交化方法（IOM）只是在完全正交化方法（FOM）的基础上缩减了正交化的工作量（只与前$k$个向量正交），因此不完全正交化方法（IOM）的核心正交化方法其实就是不完全正交化的Arnoldi方法（见改进的和不完全正交化的Arnoldi算法一文）。因而很容易得到不完全正交化方法（IOM）的算法实现。
+
+对于给定的$A\in\mathbb{R}^{n \times n}$，$\boldsymbol{b},\boldsymbol{x}_0\in\mathbb{R}^n$，以及正整数$k$和$m$，不完全正交化方法（IOM）的算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Incomplete Orthogonalization Method}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\beta\gets\|\boldsymbol{r}_0\|_2$, $\boldsymbol{v}_1\gets\boldsymbol{r}_0/\beta$\;
+define $H_m=\{h_{ij}\}_{i,j=1,\cdots,m}$; set $H_m=0$\;
+\For{$j\gets 1$ \KwTo $m$}{
+	$\boldsymbol{w}_j\gets A\boldsymbol{v}_j$\;
+	\For{$i\gets\max\{1,j-k+1\}$ \KwTo $j$}{
+		$h_{ij}\gets(\boldsymbol{w}_j,\boldsymbol{v}_i)$\;
+		$\boldsymbol{w}_j\gets\boldsymbol{w}_j-h_{ij}\boldsymbol{v}_i$\;
+	}
+	$h_{j+1,j}\gets\|\boldsymbol{w}_j\|_2$\;
+	\If{$h_{j+1,j}=0$}{
+		set $m\gets j$; Goto 15\;
+	}
+	$\boldsymbol{v}_{j+1}\gets\boldsymbol{w}_j/h_{j+1,j}$\;
+}
+$\boldsymbol{y}_m\gets H_m^{-1}(\beta\boldsymbol{e}_1)$; $\boldsymbol{x}_m\gets\boldsymbol{x}_0+V_m\boldsymbol{y}_m$\;
+\eIf{$h_{m+1,m}$ is small enough}{
+	Stop\;
+	}{
+	$\boldsymbol{x}_0\gets\boldsymbol{x}_m$ and Goto 1\;
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{不完全正交化方法（IOM）算法说明}
+
+- 上述算法的第$3\thicksim14$行便是不完全正交的Arnoldi方法（见改进的和不完全正交化的Arnoldi算法一文），主要体现在第$5$行内循环的起始条件。也就是说，第$j$步中计算的正交化向量$\boldsymbol{v}_{j+1}$只和前$k$个向量$\{\boldsymbol{v}_{j-k+1},\cdots,\boldsymbol{v}_j\}$正交，从而缩减了正交化的计算量；
+
+- 虽然上面的不完全正交的Arnoldi方法只计算并保存了$k+1$个正交化向量，但观察算法的第$15$行，$\boldsymbol{x}_m$的计算却需要完整的$m$个正交化向量。一种解决方式是在算法最后重新计算$m$个正交化向量$\{\boldsymbol{v}_1,\cdots,\boldsymbol{v}_m\}$，但并不高效；另一种解决方法则是使用下面所要介绍的直接不完全正交化方法（DIOM）；
+
+- 算法的第$16\thicksim20$引入了重启机制，当$\boldsymbol{x}_m$的残差过大时（通常以$h_{m+1,m}$的值为判断依据），重新开始新一轮的不完全正交化方法（IOM）；
+
+求解[label]线性方程组[/label]$A\boldsymbol{x}=\boldsymbol{b}$的[label]现代迭代法[/label]都是在[label]Krylov子空间[/label]框架下进行推导的（见由相伴矩阵引入Krylov子空间法一文）。在$\mathbb{R}^n$中，关于$A$和$\boldsymbol{r}_0$的Krylov子空间定义为：
+
+\subsection*{直接不完全正交化方法（DIOM）}
+
+\subsection*{直接不完全正交化方法（DIOM）算法原理}
+
+不完全正交化方法（IOM）的不足主要在于算法第$15$行处的计算，即：
+
+\begin{equation}
+\label{eq:line15}
+\boldsymbol{y}_m=H_m^{-1}(\beta\boldsymbol{e}_1),\quad\boldsymbol{x}_m=\boldsymbol{x}_0+V_m\boldsymbol{y}_m
+\end{equation}
+
+indent其中$\boldsymbol{y}_m$的计算需要用到$H_m^{-1}$，而$\boldsymbol{x}_m$的计算又需要用到$V_m$和$\boldsymbol{y}_m$，但由于IOM方法只保存了最近$k+1$个正交化向量，因此无法高效计算$m$维的$H_m^{-1}$和$V_m$。而直接不完全正交化方法（DIOM）就是要改变原算法第$15$行处$\boldsymbol{x}_m$的计算方式，其思想是用上一步$\boldsymbol{x}_{m-1}$来表示$\boldsymbol{x}_m$。
+
+观察式（\ref{eq:line15}）中$\boldsymbol{y}_m$的计算：它需要用到上Hessenberg矩阵$H_m$的逆矩阵。对于给定的$k$，通过不完全正交化方法（IOM）得到的$H_m$是一个带宽为$k+1$（上带宽为$k-1$）的矩阵（见改进的和不完全正交化的Arnoldi算法一文）。如果对$H_m$进行[label]LU分解[/label]的话，可以得到$H_m=L_mU_m$。根据上Hessenberg矩阵的结构特性可知，$L_m=(l_{ij})$是下带宽为$1$的[label]单位下三角矩阵[/label]；而$U_m$是上带宽为$k-1$的上三角矩阵。于是，可以略去式（\ref{eq:line15}）中$\boldsymbol{y}_m$的计算，并将其改写为：
+
+\begin{align}
+\label{eq:pz}
+\begin{split}
+\boldsymbol{x}_m&=\boldsymbol{x}_0+V_m(L_mU_m)^{-1}(\beta\boldsymbol{e}_1) \\
+&=\boldsymbol{x}_0+\Big(V_mU_m^{-1}\Big)\Big(L_m^{-1}(\beta\boldsymbol{e}_1)\Big)=\boldsymbol{x}_0+P_m\boldsymbol{z}_m
+\end{split}
+\end{align}
+
+考虑$P_m=V_mU_m^{-1}$，即：$P_mU_m=V_m$，其矩阵形式可以表示为：
+
+\[
+\begin{pmatrix}
+~ & ~ & ~ & ~ & \\
+~ & ~ & ~ & ~ & \\
+\boldsymbol{p}_1 & \cdots & \boldsymbol{p}_{m-k+1} & \cdots & \boldsymbol{p}_m \\
+~ & ~ & ~ & ~ & \\
+~ & ~ & ~ & ~ & \\
+\end{pmatrix}
+\begin{pmatrix}
+u_{11} & \cdots & u_{1k} &  & \\
+~ & \ddots & & \ddots & \\
+& & \ddots & & u_{m-k+1,m} \\
+& & & \ddots & \vdots \\
+& & & & u_{mm} \\
+\end{pmatrix}=
+\begin{pmatrix}
+~ & ~ & ~ \\
+~ & ~ & ~ \\
+\boldsymbol{v}_1 & \cdots & \boldsymbol{v}_m \\
+~ & ~ & ~ \\
+~ & ~ & ~ \\
+\end{pmatrix}
+\]
+
+indent因此，$\boldsymbol{v}_m$可以表示为$\boldsymbol{p}_{m-k+1},\cdots,\boldsymbol{p}_m$的线性组合，即：
+
+\begin{equation}
+\label{eq:pm}
+\boldsymbol{v}_m=\sum_{i=m-k+1}^{m}u_{im}\boldsymbol{p}_i\quad\Longrightarrow\quad
+\boldsymbol{p}_m=\dfrac{1}{u_{mm}}\left(\boldsymbol{v}_m-\sum_{i=m-k+1}^{m-1}u_{im}\boldsymbol{p}_i\right)
+\end{equation}
+
+indent式（\ref{eq:pm}）说明$\boldsymbol{p}_m$可以借由此前的$\boldsymbol{p}_i$和$\boldsymbol{v}_i$计算得到。进而考虑$\boldsymbol{z}_m=L_m^{-1}(\beta\boldsymbol{e}_1)$，即：$L_m\boldsymbol{z}_m=\beta\boldsymbol{e}_1$，同样其矩阵形式可以表示为：
+
+\[
+\begin{pmatrix}
+1 & & & & \\
+l_{21} & 1 & & & \\
+& l_{32} & \ddots & & \\
+& & \ddots & 1 & \\
+& & & l_{m,m-1} & 1 \\
+\end{pmatrix}
+\begin{pmatrix}
+(\boldsymbol{z}_m)_1 \\ (\boldsymbol{z}_m)_2 \\ \vdots \\ (\boldsymbol{z}_m)_{m-1} \\ (\boldsymbol{z}_m)_m
+\end{pmatrix}=
+\begin{pmatrix}
+\beta \\ 0 \\ \vdots \\ \vdots \\ 0
+\end{pmatrix}
+\]
+
+indent因此，有如下关系式：
+
+\begin{eqnarray}
+& (\boldsymbol{z}_m)_1=\beta,\quad l_{i,i-1}(\boldsymbol{z}_m)_{i-1} + (\boldsymbol{z}_m)_i=0\quad\Longrightarrow\quad(\boldsymbol{z}_m)_i=-l_{i,i-1}(\boldsymbol{z}_m)_{i-1} \nonumber \\
+& \boldsymbol{z}_m=\begin{pmatrix}\boldsymbol{z}_{m-1}\\\xi_m\end{pmatrix}\quad\Longrightarrow\quad
+\begin{aligned}\xi_{m}&=(\boldsymbol{z}_m)_m=-l_{m,m-1}(\boldsymbol{z}_m)_{m-1}\\
+&=-l_{m,m-1}(\boldsymbol{z}_{m-1})_{m-1} \\
+&=-l_{m,m-1}\xi_{m-1}
+\end{aligned} \label{eq:xim}
+\end{eqnarray}
+
+结合式（\ref{eq:pz}、\ref{eq:pm}、\ref{eq:xim}），则$\boldsymbol{x}_m$可以改写为如下形式：
+
+\begin{align*}
+\boldsymbol{x}_m&=\boldsymbol{x}_0+P_m\boldsymbol{z}_m=\boldsymbol{x}_0+\begin{pmatrix}P_{m-1} & \boldsymbol{p}_m\end{pmatrix}\begin{pmatrix}\boldsymbol{z}_{m-1}\\\xi_m\end{pmatrix} \\
+&= (\boldsymbol{x}_0+P_{m-1}\boldsymbol{z}_{m-1})+\xi_m\boldsymbol{p}_m=\boldsymbol{x}_{m-1}+\xi_m\boldsymbol{p}_m
+\end{align*}
+
+indent其中，$\boldsymbol{p}_m$按式（\ref{eq:pm}）由前$k-1$个$\{\boldsymbol{p}_i\}_{i=m-k+1}^{m-1}$计算得到，而$\xi_m$则按式（\ref{eq:xim}）由$\xi_{m-1}$计算得到，这样就得到了$\boldsymbol{x}_m$的直接计算方法，而这也就是直接不完全正交法（DIOM）的根本原理。
+
+\subsection*{直接不完全正交化方法（DIOM）算法实现}
+
+给定矩阵$A\in\mathbb{R}^{n \times n}$，$\boldsymbol{b},\boldsymbol{x}_0\in\mathbb{R}^{n}$，以及正整数$k$，直接不完全正交化（DIOM）算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Direct Incomplete Orthogonalization Method}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\beta\gets\|\boldsymbol{r}_0\|_2$, $\boldsymbol{v}_1\gets\boldsymbol{r}_0/\beta$\;
+\For{$m\gets 1,2,\cdots$}{
+	$\boldsymbol{w}_m\gets A\boldsymbol{v}_m$\;
+	\For{$i\gets\max\{1,m-k+1\}$ \KwTo $m$}{
+		$h_{im}\gets(\boldsymbol{w}_m,\boldsymbol{v}_i)$\;
+		$\boldsymbol{w}_m\gets\boldsymbol{w}_m-h_{im}\boldsymbol{v}_i$\;
+	}
+	$h_{m+1,m}\gets\|\boldsymbol{w}_m\|_2$\;
+	$\boldsymbol{v}_{m+1}\gets\boldsymbol{w}_m/h_{m+1,m}$\;
+	update LU factorization of $H_m$, i.e., $l_{m,m-1}$, $\{u_{im}\}_{i=\max\{1,m-k+1\}}^{m}$\;
+	\eIf{$m=1$}{
+		$\xi_m\gets\beta$\;
+	}{
+		$\xi_m\gets-l_{m,m-1}\xi_{m-1}$\;
+	}
+	$\boldsymbol{p}_m\gets u^{-1}_{mm}\left(\boldsymbol{v}_m-\sum_{i=\max\{1,m-k+1\}}^{m-1}u_{im}\boldsymbol{p}_i\right)$\;
+	$\boldsymbol{x}_m=\boldsymbol{x}_{m-1}+\xi_m\boldsymbol{p}_m$\;
+	\If{residual of $\boldsymbol{x}_m$ is small enough}{
+		Stop\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{直接不完全正交化方法（DIOM）算法分析}
+
+上述直接不完全正交化方法（DIOM）有以下几点需要特别说明：
+
+- 首先以$m$作为算法最外层循环（第$2$行）的条件，每一次迭代的结果$\boldsymbol{x}_m$都要用到上一次的$\boldsymbol{x}_{m-1}$；
+
+- 第$3\thicksim9$行实际就是不完全正交化方法（IOM），主要为了得到上Hessenberg矩阵$H_m$；特别需要注意的是，第$9$行计算得到的$\boldsymbol{v}_{m+1}$在后面$\boldsymbol{x}_m$并没有用到，因此可以省略；
+
+- 第$10$行对新得到的上Hessenberg矩阵$H_m$进行LU分解。事实上，上一步迭代后已经有了$H_{m-1}=L_{m-1}U_{m-1}$，因此$L_m$中只需计算$l_{m,m-1}$，而$U_m$中只需计算最后一列的后$k$个元素$\{u_{im}\}_{i=\max\{1,m-k+1\}}^{m}$。一般使用Gauss消去法即可实现$H_m$的更新，原理如下（假定$m=6,k=3$）：
+
+\begin{eqnarray*}
+& \left(\begin{array}{ccccc|c}
+\ast & \ast & \ast & ~ & ~ & ~ \\
+\ast & \ast & \ast & \ast & ~ & ~ \\
+~ & \ast & \ast & \ast & \ast & ~ \\
+~ & ~ & \ast & \ast & \ast & h_{46} \\
+~ & ~ & ~ & \ast & \ast & h_{56} \\
+\cline{1-6}
+~ & ~ & ~ & ~ & h_{65} & h_{66} \\
+\end{array}\right)=
+\left(\begin{array}{ccccc|c}
+1 & ~ & ~ & ~ & ~ & ~ \\
+l_{21} & 1 & ~ & ~ & ~ & ~ \\
+~ & l_{32} & 1 & ~ & ~ & ~ \\
+~ & ~ & h_{43} & 1 & ~ & ~ \\
+~ & ~ & ~ & l_{54} & 1 & ~ \\
+\cline{1-6}
+& & & & \boldsymbol{l_{65}} & 1 \\
+\end{array}\right)
+\left(\begin{array}{ccccc|c}
+\ast & \ast & \ast & ~ & ~ & ~ \\
+~ & \ast & \ast & \ast & ~ & ~ \\
+~ & ~ & \ast & \ast & \ast & ~ \\
+~ & ~ & ~ & \ast & \ast & \boldsymbol{u_{46}} \\
+~ & ~ & ~ & ~ & u_{55} & \boldsymbol{u_{56}} \\
+\cline{1-6}
+~ & ~ & ~ & ~ & ~ & \boldsymbol{u_{66}} \\
+\end{array}\right) \\
+& l_{65}=h_{65}/u_{55},\quad\begin{aligned}
+u_{46}&=h_{46} \\
+u_{56}&=h_{56}-l_{54}u_{46} \\
+u_{66}&=h_{66}-l_{65}u_{56}
+\end{aligned}
+\end{eqnarray*}
+
+[alert type="error"]注意：一般通常会采用不选主元的Gauss消去法（见不选主元的Gauss消去法一文），所以一旦出现$u_{mm}=0$的情况，程序则会提前结束。此时可以改用部分主元的Gauss消去法，其原理见BLAS三个级别的列主元Gauss消去法一文。[/alert]
+
+- 算法的第$11\thicksim15$行是利用上面更新计算得到的$l_{m,m-1}$以及上一步的$\xi_{m-1}$，计算求得当前步的$\xi_m$；
+
+- 算法的第$16$行是利用上面更新计算得到的$u_{mm}$，$\{u_{im}\}_{i=\max\{1,m-k+1\}}^{m-1}$以及此前得到的$\{\boldsymbol{p}_i\}_{i=\max\{1,m-k+1\}}^{m-1}$，计算求得当前步的$\boldsymbol{p}_m$；
+
+- 最后，算法第$17$行利用当前步求得的$\xi$，$\boldsymbol{p}_m$，以及上一步的$\boldsymbol{x}_{m-1}$，计算求得当前步的$\boldsymbol{x}_m$；并在算法第$18\thicksim20$行判断$\boldsymbol{x}_m$的残差是否满足精度要求。
+
+[alert type="info"]事实上，正如如完全正交化方法（FOM）的迭代终止条件一样（见线性方程组的Arnoldi方法之：FOM一文），直接不完全正交化方法（DIOM）也可以以$h_{m+1,m}$是否足够小为判断依据。理由见式（\ref{eq:hmm}）[/alert]
+
+\begin{align}
+\label{eq:hmm}
+\begin{split}
+\|\boldsymbol{b}-A\boldsymbol{x}_m\|_2&=h_{m+1,m}\left|\boldsymbol{e}_m^T\boldsymbol{y}_m\right| \\
+&=h_{m+1,m}\left|\boldsymbol{e}_m^T\left[(H_m)^{-1}(\beta\boldsymbol{e}_1)\right]\right|=h_{m+1,m}\left|\boldsymbol{e}_m^T\left[U_m^{-1}(L_m^{-1}\beta\boldsymbol{e}_1)\right]\right| \\
+&=h_{m+1,m}\left|\boldsymbol{e}_m^T\left(U_m^{-1}\boldsymbol{z}_m\right)\right| \\
+&=h_{m+1,m}\left|
+\begin{pmatrix}0&\cdots&0&1\end{pmatrix}\begin{pmatrix}\ast&\cdots&\cdots&\ast\\&\ddots&\ddots&\vdots\\&&\ddots&\vdots\\&&&u^{-1}_{mm}\end{pmatrix}\begin{pmatrix}\xi_1\\\vdots\\\vdots\\\xi_m\end{pmatrix}\right| \\
+&=h_{m+1,m}\left|\dfrac{\xi_m}{u_{mm}}\right|
+\end{split}
+\end{align}
+
+%[/aside_content]
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

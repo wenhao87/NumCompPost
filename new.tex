@@ -1,0 +1,226 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{详解基于矩阵分裂的迭代格式的收敛性}
+
+上文详细讨论了基于矩阵分裂的迭代格式的收敛性（见详解基于矩阵分裂的迭代格式的收敛性一文），此外在求解线性方程组的基本迭代法一文中，简单介绍了基本迭代法原理以及几个经典迭代算法。本文作为补充，将详细介绍经典迭代算法的相关特性和算法实现，并且将着重讨论经典迭代法在[label]二维Poisson问题[/label]模型上（见详解一维和二维离散Poisson方程一文）的算法实现。
+
+常见的基于矩阵分裂的古典迭代算法（Classic Iterative Methods）包括有：1）Jacobi算法、2）Gauss-Seidel算法、3）SOR（Successive Over-Relaxation）算法、4）SSOR（Symmetric SSOR）算法。此外，还有AOR（Accelerated Over-Relaxation）算法、Richardson算法等。
+
+\subsection*{Jacobi迭代}
+
+[label]Jacobi迭代[/label]将矩阵$\boldsymbol{A}$分裂为$\boldsymbol{A}=\boldsymbol{D}-\boldsymbol{L}-\boldsymbol{U}$的形式，其中$\boldsymbol{D}$为$\boldsymbol{A}$的B对角线部分，$-\boldsymbol{L}$和$-\boldsymbol{U}$分别为$\boldsymbol{A}$的B严格下三角部分和B严格上三角部分。根据[label]矩阵分裂[/label]形式$\boldsymbol{A}=\boldsymbol{M}-\boldsymbol{N}$，取$\boldsymbol{M}=\boldsymbol{D}$，$\boldsymbol{N}=\boldsymbol{L}+\boldsymbol{U}$，即可得到Jacobi迭代算法，即：
+
+\begin{eqnarray}
+    \label{eq:jacobi}
+    & \boldsymbol{x}^{(k+1)} = \boldsymbol{D}^{-1}(\boldsymbol{L}+\boldsymbol{U})\boldsymbol{x}^{(k)}+\boldsymbol{D}^{-1}\boldsymbol{b} \;,\quad k=0,1,2,\ldots \\
+    & \boldsymbol{G}_{\mathrm{J}}=\boldsymbol{D}^{-1}(\boldsymbol{L}+\boldsymbol{U})
+\end{eqnarray}
+
+noindent其中$\boldsymbol{G}_{\mathrm{J}}$为Jacobi迭代算法的迭代矩阵。式（\ref{eq:jacobi}）的分量形式可以表示为：
+
+\begin{equation}
+    \label{eq:jacobicomp}
+    x_{i}^{(k+1)}=\dfrac{1}{a_{ii}}\left(b_i-\sum_{j=1,j \neq i}^na_{ij}x_j^{(k)}\right) \;,\quad i=1,2,\cdots,n
+\end{equation}
+
+[alert type="info"]观察式（\ref{eq:jacobicomp}），Jacobi迭代中分量$x_i^{(k+1)}$的更新顺序与$i$无关，换言之，Jacobi迭代B非常适合并行计算。[/alert]
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Jacobi Iterative Method for Linear Systems}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{x}^{(0)}$ \;
+    \While{not converge}{
+        \For{$i \gets 1$ \KwTo $n$}{
+            $\displaystyle x_i^{(k+1)}=\left(b_i-\sum_{j=1,j \neq i}^na_{ij}x_j^{(k)}\right)\Big/a_{ii}$ \;
+        }
+    }
+\end{algorithm}
+%[/latex]
+
+式（\ref{eq:jacobi}）的迭代格式也可以改写为如下形式，其中$\boldsymbol{r}_k\triangleq \boldsymbol{b}-A\boldsymbol{x}^{(k)}$是第$k$次迭代后的[label]残差[/label]：
+
+\[
+    \begin{aligned}
+        \boldsymbol{x}^{(k+1)} &= \boldsymbol{D}^{-1}(\boldsymbol{D}-\boldsymbol{A})\boldsymbol{x}^{(k)}+\boldsymbol{D}^{-1}\boldsymbol{b} \\
+        &= \boldsymbol{x}^{(k)}+\boldsymbol{D}^{-1}(\boldsymbol{b}-\boldsymbol{Ax}^{(k)}) =
+        \boldsymbol{x}^{(k)}+\boldsymbol{D}^{-1}\boldsymbol{r}_k \\
+    \end{aligned} \;,\quad k=0,1,2,\ldots
+\]
+
+在详解一维和二维离散Poisson方程一文中提到，通过五点差分离散二维Poisson方程后得到的离散方程为：
+
+\begin{eqnarray*}
+    & 4u_{ij}-u_{i-1,j}-u_{i+1,j}-u_{i,j-1}-u_{i,j+1} = h^2f_{ij} \\
+    & \boldsymbol{T}\boldsymbol{u} = h^2\boldsymbol{f} \\
+\end{eqnarray*}
+
+结合Jacobi迭代算法，便能得到如下的求解二维Poisson方程的Jacobi迭代算法：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Jacobi Iterative Method for 2D Poisson}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{v}^{(0)}$ \;
+    \While{not converge}{
+        \For{$i \gets 1$ \KwTo $n$}{
+            \For{$j \gets 1$ \KwTo $n$}{
+                $u_{ij}^{(k+1)}=\left(h^2f_{ij}+u^{(k)}_{i-1,j}+u^{(k)}_{i+1,j}+u^{(k)}_{i,j-1}+u^{(k)}_{i,j+1}\right)\Big/4$ \;
+            }
+        }
+    }
+\end{algorithm}
+%[/latex]
+
+\subsection*{Gauss-Seidel迭代}
+
+对于矩阵分裂$\boldsymbol{A}=\boldsymbol{M}-\boldsymbol{N}=\boldsymbol{D}-\boldsymbol{L}-\boldsymbol{U}$，[label]Gauss-Seidel迭代[/label]取$\boldsymbol{M}=\boldsymbol{D}-\boldsymbol{L}$，$\boldsymbol{N}=\boldsymbol{U}$，即：
+
+\begin{eqnarray}
+    \label{eq:gs}
+    & \boldsymbol{x}^{(k+1)}=(\boldsymbol{D}-\boldsymbol{L})^{-1}\boldsymbol{U}\boldsymbol{x}^{(k)}+(\boldsymbol{D}-\boldsymbol{L})^{-1}\boldsymbol{b} \\
+    & \boldsymbol{G}_{\mathrm{GS}}=(\boldsymbol{D}-\boldsymbol{L})^{-1}\boldsymbol{U}
+\end{eqnarray}
+
+noindent其中$\boldsymbol{G}_{\mathrm{GS}}$为Gauss-Seidel迭代算法的迭代矩阵。对式（\ref{eq:gs}）进行改写后便能得到式（\ref{eq:gscomp}）的分量形式，即：
+
+\begin{eqnarray}
+    \label{eq:gscomp}
+    & (\boldsymbol{D}-\boldsymbol{L})\boldsymbol{x}^{(k+1)} = \boldsymbol{Ux}^{(k)}+\boldsymbol{b} \;\Rightarrow\;
+    \boldsymbol{D}\boldsymbol{x}^{(k+1)}=\boldsymbol{L}\boldsymbol{x}^{(k+1)} +\boldsymbol{Ux}^{(k)}+\boldsymbol{b} \\
+    & \displaystyle x_{i}^{(k+1)} = \dfrac{1}{a_{ii}}\left(b_i-\sum_{j=1}^{i-1}a_{ij}x_j^{(k+1)}-\sum_{j=i+1}^{n}a_{ij}x_{j}^{(k)}\right) \;,\quad i=1,2,\ldots,n
+\end{eqnarray}
+
+[alert type="info"]观察式（\ref{eq:gscomp}）可以发现，Gauss-Seidel迭代算法充分利用了已经获得的最新数据，因此它通常比Jacobi算法B更快速。但是需要注意的是，Gauss-Seidel迭代算法需要B按顺序跟新分量，因此b不适合并行计算。[/alert]
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Gauss-Seidel Iterative Method for Linear Systems}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{x}^{(0)}$ \;
+    \While{not converge}{
+        \For{$i \gets 1$ \KwTo $n$}{
+            $\displaystyle x_i^{(k+1)}=\left(b_i-\sum_{j=1}^{i-1}a_{ij}x_j^{(k+1)}-\sum_{j=i+1}^na_{ij}x_j^{(k)}\right)\Big/a_{ii}$ \;
+        }
+    }
+\end{algorithm}
+%[/latex]
+
+对于二维离散Poisson方程，可以利用[label]红黑排序[/label]来提升算法的并行性。其原理是将二维网格的点依次做红黑标记，而在更新未知量的过程中，先只更新红色节点，此时只需要用到黑色节点的数据，然后再使用红色节点来更新黑色节点，从而实现了并行计算。结合Gauss-Seidel迭代算法和红黑排序方法，便能得到如下的求解二维Poisson方程的红黑排序Gauss-Seidel迭代算法：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{B/R G-S Iterative Method for 2D Poisson}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{v}^{(0)}$ \;
+    \While{not converge}{
+        \For{$(i,j)$ is red}{
+            $u_{ij}^{(k+1)}=\left(h^2f_{ij}+u^{(k)}_{i-1,j}+u^{(k)}_{i+1,j}+u^{(k)}_{i,j-1}+u^{(k)}_{i,j+1}\right)\Big/4$ \;
+        }
+        \For{$(i,j)$ is black}{
+            $u_{ij}^{(k+1)}=\left(h^2f_{ij}+u^{(k+1)}_{i-1,j}+u^{(k+1)}_{i+1,j}+u^{(k+1)}_{i,j-1}+u^{(k+1)}_{i,j+1}\right)\Big/4$ \;
+        }
+    }
+\end{algorithm}
+%[/latex]
+
+\subsection*{SOR迭代}
+
+在Gauss-Seidel迭代算法的基础之上，通过引入一个[label]松弛参数[/label]$\omega$，可以加速收敛速度，所得到的便是[label]SOR[/label]（Successive Overrelaxation）算法。该算法的B核心思想是将式（\ref{eq:gscomp}）Gauss-Seidel迭代算法中第$k+1$步的近似解$\boldsymbol{x}^{(k+1)}$与第$k$步的近似解做一个B加权平均，从而得到一个新的近似解。因此，SOR迭代算法的迭代格式为：
+
+\begin{eqnarray}
+    \label{eq:sor}
+    & \begin{aligned}
+        & \boldsymbol{x}^{(k+1)} = (1-\omega)\boldsymbol{x}^{(k)} + \omega\overbrace{\left(\boldsymbol{D}^{-1}(\boldsymbol{L}\boldsymbol{x}^{(k+1)} + \boldsymbol{U}\boldsymbol{x}^{(k)}) + \boldsymbol{D}^{-1}\boldsymbol{b}\right)}^{\boldsymbol{x}^{(k+1)}} \\
+        \Rightarrow \;& \boldsymbol{D}\boldsymbol{x}^{(k+1)} = (1-\omega)\boldsymbol{D}\boldsymbol{x}^{(k)} + \omega\boldsymbol{L}\boldsymbol{x}^{(k+1)} + \omega\boldsymbol{U}\boldsymbol{x}^{(k)} + \omega\boldsymbol{b} \\
+        \Rightarrow \;& \boldsymbol{x}^{(k+1)} = (\boldsymbol{D}-\omega\boldsymbol{L})^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{U}\Big)\boldsymbol{x}^{(k)} + \omega(\boldsymbol{D}-\omega\boldsymbol{L})^{-1}\boldsymbol{b}
+    \end{aligned} \\
+    & \boldsymbol{G}_{\mathrm{SOR}} = (\boldsymbol{D}-\omega\boldsymbol{L})^{-1}\Big((1-\omega)\boldsymbol{D}+\omega\boldsymbol{U}\Big) \quad
+    \left\{\;\begin{aligned}
+        \boldsymbol{M} &=
+        \dfrac{1}{\omega}\boldsymbol{D}-\boldsymbol{L} \\
+        \boldsymbol{N} &=
+        \dfrac{1-\omega}{\omega}\boldsymbol{D}+\boldsymbol{U} \\
+    \end{aligned}\right.
+\end{eqnarray}
+
+noindent其中$\boldsymbol{G}_{\mathrm{SOR}}$为SOR迭代算法的迭代矩阵，$\omega$为松弛参数。特别地，当$\omega=1$时，SOR迭代算法即为Gauss-Seidel迭代算法。一般而言，当$\omega<1$时，称为[label]低松弛算法[/label]，而$\omega>1$时则称为[label]超松弛算法[/label]。
+
+对式（\ref{eq:sor}）进行改写即可得到如下式（\ref{eq:sorcomp}）的分量形式，即：
+
+\begin{equation}
+    \label{eq:sorcomp}
+    x_{i}^{(k+1)} = (1-\omega)x_{i}^{(k)} + \dfrac{\omega}{a_{ii}} \left(b_i-\sum_{j=1}^{i-1}a_{ij}x_j^{(k+1)}-\sum_{j=i+1}^na_{ij}x_{j}^{(k)}\right)
+\end{equation}
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{SOR Iterative Method for Linear Systems}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{x}^{(0)}$ and parameter $\omega$ \;
+    \While{not converge}{
+        \For{$i \gets 1$ \KwTo $n$}{
+            $\displaystyle x_i^{(k+1)} = (1-\omega)x_i^{(k)} + \dfrac{w}{a_{ii}}\left(b_i-\sum_{j=1}^{i-1}a_{ij}x_j^{(k+1)}-\sum_{j=i+1}^na_{ij}x_j^{(k)}\right)$ \;
+        }
+    }
+\end{algorithm}
+%[/latex]
+
+[alert type="info"]SOR迭代算法在很长一段时间内是求解线性方程组的首选方法，并且在大多是情况下，当$\omega>1$时会取得较好的收敛效果。SOR迭代算法的优点在于通过选取适当的$\omega$可以大大提高算法的收敛速度，但其难点也在于如何选取B最优的参数。[/alert]
+
+同样，SOR迭代算法也可以通过结合红黑排序算法来求解二维离散Poisson方程，其算法描述如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{B/R G-S Iterative Method for 2D Poisson}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{v}^{(0)}$ and parameter $\omega$ \;
+    \While{not converge}{
+        \For{$(i,j)$ is red}{
+            $u_{ij}^{(k+1)} = (1-\omega)v_{ij}^{(k)} + \omega \left( h^2f_{ij} + u^{(k)}_{i-1,j} + u^{(k)}_{i+1,j} + u^{(k)}_{i,j-1} + u^{(k)}_{i,j+1} \right)\Big/4$ \;
+        }
+        \For{$(i,j)$ is black}{
+            $u_{ij}^{(k+1)} = (1-\omega)v_{ij}^{k} + \omega \left( h^2f_{ij} + u^{(k+1)}_{i-1,j} + u^{(k+1)}_{i+1,j} + u^{(k+1)}_{i,j-1} + u^{(k+1)}_{i,j+1} \right)\Big/4$ \;
+        }
+    }
+\end{algorithm}
+%[/latex]
+
+
+
+\end{document}

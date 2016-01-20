@@ -1,0 +1,248 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{详解Lanczos方法与线性方程组的Lanczos迭代法}
+
+%[aside_content]
+
+前面详细讨论了基于[label]Gram-Schmidt正交化[/label]方法的[label]Arnoldi方法[/label]，以及改进的和不完全正交化的Arnoldi方法（见基于经典Gram-Schmidt正交化方法的Arnoldi算法一文和改进的和不完全正交化的Arnoldi算法一文）。进而，得到了求解线性方程组的Arnoldi方法，分别对应完全正交化方法（[label]FOM[/label]）（见线性方程组的Arnoldi方法之：FOM）、不完全正交化方法（[label]IOM[/label]）和直接不完全正交化方法（[label]DIOM[/label]）（见不完全（IOM）和直接不完全（DIOM）正交化方法）。此外，还详细讨论了另一种称为广义极小残差方法（[label]GMRES[/label]）的现代迭代法，以及相关的变形（见基本GMRES方法及其变形一文）。本文将讨论另一种特殊的迭代方法：[label]对称Lanczos方法[/label]。如果矩阵$A$是一个[label]对称矩阵[/label]，对称Lanczos方法可以视作是改进的Arnoldi算法的一种简化。
+
+\subsection*{对称Lanczos方法}
+
+\subsubsection*{对称Lanczos方法的算法思想}
+
+根据Arnoldi方法（见基于经典Gram-Schmidt正交化方法的Arnoldi算法一文），对于矩阵$A$和Krylov子空间上正交化后得到的一组基底向量$V_m$，它们满足关系式：
+
+\begin{equation}
+\label{eq:arnoldi}
+V^T_mAV_m=H_m
+\end{equation}
+
+indent其中，$H_m$是一个$m \times m$阶[label]上Hessenberg矩阵[/label]。观察式（\ref{eq:arnoldi}），如果$A$是对称矩阵，则上Hessenberg矩阵$H_m$也是对称矩阵，于是可以推知，$H_{m}=(h_{ij})$是[label]对称三对角矩阵[/label]。如果令$\alpha_j=h_{jj}$，$\beta_j=h_{j-1,j}$的话，则有：
+
+\begin{equation}
+\label{eq:tm}
+\begin{aligned}
+H_m^T&=(V_m^TAV_m)^T=V_m^TA^TV_m \\
+&=V_m^TAV_m=H_m
+\end{aligned}\quad,\quad
+H_m=\begin{pmatrix}
+\alpha_1 & \beta_2 & & & \\
+\beta_2 & \alpha_2 & \beta_3 & & \\
+& \ddots & \ddots & \ddots & \\
+& & \beta_{m-1} & \alpha_{m-1} & \beta_m \\
+& & & \beta_m & \alpha_m
+\end{pmatrix}=T_m
+\end{equation}
+
+在改进的Arnoldi方法的算法实现中（见改进的和不完全正交化的Arnoldi算法一文），外循环第$j$步时，内循环$i$从$1\thicksim j$，计算$h_{ij}$和$\boldsymbol{w}_j$；然后得到$h_{j+1,j}$以及正交化向量$\boldsymbol{v}_{j+1}$。观察式（\ref{eq:tm}），显然对于Lanczos方法的外循环第$j$步，其内循环只需执行两步：
+
+- 当$i=j-1$时，$\boldsymbol{w}_j$的更新需要用到$\beta_j=h_{j-1,j}$，根据矩阵$T_m$的对称性，它等于上一步已经得到的$h_{j+1,j}$，因此可直接对$\boldsymbol{w}_j$进行更新；
+
+- 当$i=j$时，需要先计算$\alpha_j=h_{jj}$，而它便等于$(\boldsymbol{w}_j,\boldsymbol{v}_j)$；于是便能进一步更新$\boldsymbol{w}_j$，并得到$h_{j+1,j}=\beta_{j+1}=h_{j,j+1}$，为下一步所用。
+
+\subsubsection*{对称Lanczos方法的算法实现}
+
+基于上述的分析，便很容易得到对称Lanczos方法的算法实现。对于给定对阵矩阵$A\in\mathbb{R}^{n \times n}$，向量$\boldsymbol{v}_1\in\mathbb{R}^n$以及正整数$m$（这里假定$\|\boldsymbol{v}_1\|_2=1$），并且令$\beta_1\equiv0,\boldsymbol{v}_0\equiv0$，即：$\beta_1\boldsymbol{v}_0=0$，则对称Lanczos方法的算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Symmetric Lanczos}
+\begin{algorithm}[H]
+\For{$j\gets 1$ \KwTo $m$}{
+	$\boldsymbol{w}_j\gets A\boldsymbol{v}_j-\beta_j\boldsymbol{v}_{j-1}$\;
+	$\alpha_j\gets(\boldsymbol{w}_j,\boldsymbol{v}_j)$\;
+	$\boldsymbol{w}_j\gets\boldsymbol{w}_j-\alpha_j\boldsymbol{v}_j$\;
+	$\beta_{j+1}\gets\|\boldsymbol{w}_j\|_2$\;
+	\If{$\beta_{j+1}=0$}{
+		Stop\;
+	}
+	$\boldsymbol{v}_{j+1}\gets\boldsymbol{w}_j/\beta_{j+1}$\;
+}
+\end{algorithm}
+%[/latex]
+
+上述对称Lanczos方法的算法实现，实际就是改进的Arnoldi方法的一种特殊情况。所以有：
+
+\begin{eqnarray*}
+& AV_m=V_mT_m+\boldsymbol{w}_m\boldsymbol{e}_m^T=V_{m+1}\bar{T}_m \\
+& V_m^TAV_m=T_m
+\end{eqnarray*}
+
+indent其中，$\bar{T}_m$是把$T_m$的最后一行添上一行$(0,\cdots,0,\beta_{m+1})$后得到的$(m+1)\times m$阶矩阵。而如果要得到完整的$\{\boldsymbol{v}_j\}_{j=1}^{m+1}$，则需要有$\{\beta_j\}_{j=2}^{m+1}$都不为$0$。
+
+\subsection*{线性方程组的直接Lanczos迭代方法}
+
+改进的Arnoldi方法可以用于线性方程组$A\boldsymbol{x}=\boldsymbol{b}$的迭代求解，对应的算法称为完全正交化方法（FOM）（见线性方程组的Arnoldi方法之：FOM一文）；如果基于不完全正交化的Arnoldi方法（见改进的和不完全正交化的Arnoldi算法一文），对应的迭代算法称为不完全正交化方法（IOM），及其变形直接不完全正交化方法（DIOM）（见不完全（IOM）和直接不完全（DIOM）正交化方法一文）。由于对称Lanczos方法是改进的Arnoldi方法的一种特殊情况，因此线性方程组的Lanczos迭代法的推导几乎和Arnoldi方法推导FOM、IOM、DIOM迭代法的过程完全一致。
+
+[alert type="info"]通过简化重新开始的完全正交化方法（Restarted FOM），即可得到重新开始的Lanczos迭代法，其根本便是将核心的Arnoldi方法替换为上述的Lanczos方法。这里将不再冗述。[/alert]
+
+\subsubsection*{直接Lanczos迭代方法的算法思想}
+
+不完全正交化Arnoldi方法的核心思想是：对于向量$\boldsymbol{v}_j$的正交化，并不要求其与之前所有的$\{\boldsymbol{v}_i\}_{i=1}^{j-1}$都正交，而只需与它前面的$k$个$\boldsymbol{v}_i$正交（见改进的和不完全正交化的Arnoldi算法一文），且最终得到的是一个[label]上带宽[/label]为$k-1$的上Hessenberg矩阵$H_m$。
+
+根据前面所讨论的，若矩阵$A$是[label]对称矩阵[/label]，最终得到的$H_m=T_m$是一个[label]对称三对角矩阵[/label]，也就是说其上带宽为$1$。因此，可以把对称Lanczos方法看作是$k=2$的不完全正交化Arnoldi方法；而若将后者用于求解线性方程组的话，便可以得到IOM和DIOM方法。因此，如果将对称Lanczos方法用于求解线性方程组，则完全可以看作是基于不完全正交化算法（$k=2$）的DIOM算法，并称其为直接Lanczos方法。
+
+根据$k=2$时的直接不完全正交化方法（DIOM）的推导，对$T_m$进行[label]LU分解[/label]的话可以得到：$T_m=L_mU_m$，其矩阵形式可以表示为：
+
+\begin{align}
+\label{eq:mattm}
+\begin{split}
+T_m&=\begin{pmatrix}
+\alpha_1 & \beta_2 & & & \\
+\beta_2 & \alpha_2 & \beta_3 & & \\
+& \ddots & \ddots & \ddots & \\
+& & \beta_{m-1} & \alpha_{m-1} & \beta_m \\
+& & & \beta_m & \alpha_m
+\end{pmatrix} \\
+&=\begin{pmatrix}
+1 & & & & \\
+l_{21} & 1 & & & \\
+& \ddots & \ddots & & \\
+& & l_{m-1,m-2} & 1 & \\
+& & & l_{m,m-1} & 1
+\end{pmatrix}
+\begin{pmatrix}
+u_{11} & \beta_2 & & & \\
+& u_{22} & \beta_3 & & \\
+& & \ddots & \ddots & \\
+& & & u_{m-1,m-1} & \beta_m \\
+& & & & u_{mm}
+\end{pmatrix}
+\end{split}
+\end{align}
+
+第$m$步时，需要更新$T_m$的LU分解，也就是计算$l_{m,m-1}$，以及$\{u_{im}\}_{i=\max\{1,m-k+1\}}^m$。当$k=2$时，实际只需要计算$u_{m-1,m}$和$u_{mm}$即可，且其中$u_{m-1,m}=\beta_m$。因此，根据式（\ref{eq:mattm}），$l_{m,m-1}$和$u_{mm}$可以通过如下方式求得：
+
+\begin{equation}
+\label{eq:lu}
+\left.
+\begin{aligned}
+l_{m,m-1}u_{m-1,m-1}&=\beta_m \\
+l_{m,m-1}\beta_m+u_{mm}&=\alpha_m
+\end{aligned}\quad\right\}\Longrightarrow\quad
+\begin{aligned}
+l_{m,m-1}&=\dfrac{\beta_m}{u_{m-1,m-1}} \\
+u_{mm}&=\alpha_m-l_{m,m-1}\beta_m
+\end{aligned},\quad
+u_{11}=\alpha_1,\quad m\geq 2
+\end{equation}
+
+\subsubsection*{直接Lanczos迭代方法的算法实现}
+
+直接不完全正交化方法（DIOM）的算法关键在于更新矩阵$H_m$的LU分解，而上述讨论给出了$k=2$时矩阵$T_m$的LU分解更新流程。在保持DIOM算法中的其他操作都不变的情况下，便得到了直接Lanczos迭代方法的算法实现。对于给定对称矩阵$A\in\mathbb{R}^{n \times n}$，$\boldsymbol{b},\boldsymbol{x}_0\in\mathbb{R}^{n}$，直接Lanczos迭代方法的算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Direct Version of Lanczos}
+\begin{algorithm}[H]
+compute $\boldsymbol{r}_0\gets\boldsymbol{b}-A\boldsymbol{x}_0$, $\lambda\gets\|\boldsymbol{r}_0\|_2$, $\boldsymbol{v}_1\gets\boldsymbol{r}_0/\lambda$\;
+set $\beta_1=0$, $\boldsymbol{v}_0=0$, $\boldsymbol{p}_0=0$\;
+\For{$m\gets 1,2,\cdots$}{
+	$\boldsymbol{w}_m\gets A\boldsymbol{v}_m-\beta_m\boldsymbol{v}_{m-1}$\;
+	$\alpha_m\gets(\boldsymbol{w}_m,\boldsymbol{v}_m)$\;
+	$\boldsymbol{w}_m\gets\boldsymbol{w}_m-\alpha_m\boldsymbol{v}_m$\;
+	$\beta_{m+1}\gets\|\boldsymbol{w}_m\|_2$\;
+	\If{$\beta_{m+1}=0$}{
+		Stop\;
+	}
+	$\boldsymbol{v}_{m+1}\gets\boldsymbol{w}_m/\beta_{m+1}$\;
+	\eIf{$m=1$}{
+		$u_{mm}\gets\alpha_m$\;
+	}{
+		$l_{m,m-1}\gets\beta_m/u_{m-1,m-1}$\;
+		$u_{m-1,m}\gets\beta_m$\;
+		$u_{mm}\gets\alpha_m-l_{m,m-1}\beta_m$\;
+	}
+	\eIf{$m=1$}{
+		$\xi_m\gets\lambda$\;
+	}{
+		$\xi_m\gets-l_{m,m-1}\xi_{m-1}$\;
+	}
+	$\boldsymbol{p}_m\gets u_{mm}^{-1}\left(\boldsymbol{v}_m-\beta_m\boldsymbol{p}_{m-1}\right)$\;
+	$\boldsymbol{x}_m=\boldsymbol{x}_{m-1}+\xi_m\boldsymbol{p}_m$\;
+	\If{$\boldsymbol{x}_m$ has converged}{
+		Stop\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{直接Lanczos迭代方法的算法分析}
+
+对于上述直接Lanczos迭代方法，有以下几点需要说明：
+
+- 和直接不完全正交化方法（DIOM）类似，直接Lanczos迭代方法也以以$m$作为算法最外层循环（第$3$行）的条件，每一次迭代的结果$\boldsymbol{x}_m$都要用到上一次的$\boldsymbol{x}_{m-1}$；
+
+- 算法的第$4\thicksim11$行便是完整的对称Lanczos方法，并得到对称三对角矩阵$T_M$；
+
+- 算法的第$12\thicksim18$行，便是对$T_m$的LU分解进行更新，即根据式（\ref{eq:lu}）计算$l_{m-1,m}$和$u_{mm}$，其中$u_{m-1,m}=\beta_m$。特别地，当$m=1$时，只需要计算$u_{mm}$即可；
+
+- 算法的第$19\thicksim28$行只需看作是直接不完全正交化方法（DIOM）在$k=2$时的特例即可。其主要工作就是计算当前步的$\xi_m$和$\boldsymbol{p}_m$，并结合上一步的$\boldsymbol{x}_{m-1}$，计算得到当前步的$\boldsymbol{x}_m$，并判断其是否满足精度要求。
+
+特别需要注意的是算法的第$24$行，在直接不完全正交化方法（DIOM）中，$\boldsymbol{p}_m$的计算形式为：
+
+\begin{equation}
+\label{eq:pmdiom}
+\boldsymbol{p}_m=\dfrac{1}{u_{mm}}\left(\boldsymbol{v}_m-\sum_{i=\max\{1,m-k+1\}}^{m-1}u_{im}\boldsymbol{p}_i\right)
+\end{equation}
+
+indent而在直接Lanczos迭代法中，由于$k=2$，所以式（\ref{eq:pmdiom}）可以进一步简化为：
+
+\begin{align*}
+\label{eq:pmdlan}
+\begin{split}
+\boldsymbol{p}_m&=\dfrac{1}{u_{mm}}\left(\boldsymbol{v}_m-\sum_{i=\max\{1,m-1\}}^{m-1}u_{im}\boldsymbol{p}_i\right) \\
+&=\dfrac{1}{u_{mm}}\left(\boldsymbol{v}_m-u_{m-1,m}\boldsymbol{p}_{m-1}\right)=\dfrac{1}{u_{mm}}\left(\boldsymbol{v}_m-\beta_m\boldsymbol{p}_{m-1}\right)
+\end{split}
+\end{align*}
+
+%[/aside_content]
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

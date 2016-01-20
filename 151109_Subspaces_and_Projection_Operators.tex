@@ -1,0 +1,108 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+\section*{子空间与投影算子}
+
+投影算子（Projection operators）在数值线性代数中，尤其是求解线性方程组时使用的[label]迭代法[/label]中，有着极其重要的作用。本文主要通过引入子空间的概念，并从纯代数的角度出发，讨论投影算子及其相关性质。
+
+\subsection*{子空间与直和}
+
+\subsubsection*{子空间和}
+
+设$\mathcal{X}$和$\mathcal{Y}$是定义于向量空间$\mathcal{V}$中的两个[label]子空间/label]，表示为$\mathcal{X}\subseteq\mathcal{V},\mathcal{X}\subseteq\mathcal{V}$。定义[label]子空间交集[/label]为：$\mathcal{X}\cap\mathcal{Y}$，它满足向量加法和标量乘法的封闭性，因此子空间交集是$\mathcal{V}$的一个子空间；定义$\mathcal{X}\cup\mathcal{Y}$为包含所有$\mathcal{X}$和$\mathcal{Y}$的向量集合，但它B不满足向量加法封闭性，因此$\mathcal{X}\cup\mathcal{Y}$并不是一个子空间。但另一方面，任何向量集的[label]扩张[/lable]都是子空间，所以$\mathcal{X}\cup\mathcal{Y}$的扩张是$\mathcal{V}$的一个子空间，因此可以定义$\mathcal{X}$和$\mathcal{Y}$的[label]子空间和[/label]为：
+
+\[
+\mathcal{X}+\mathcal{Y}\overset{\underset{\mathrm{def}}{}}{=}\mathrm{span}(\mathcal{X}\cup\mathcal{Y})=\big\{\boldsymbol{x}+\boldsymbol{y}|\boldsymbol{x}\in\mathcal{X},\boldsymbol{y}\in\mathcal{Y}\big\}
+\]
+
+indent 并且有等式$\text{dim}\mathcal{X}+\text{dim}\mathcal{Y}=\text{dim}(\mathcal{X}+\mathcal{Y})+\text{dim}(\mathcal{X}\cap\mathcal{Y})$，该关系式也称为子空间的[label]容斥定理[/label]。
+
+\subsubsection*{补子空间}
+
+设$\mathcal{X}$为向量空间$\mathcal{V}$的子空间，如果$\mathcal{X}\cap\mathcal{Y}=\mathcal{O}$且$\mathcal{X}+\mathcal{Y}=\mathcal{V}$，则称$\mathcal{Y}$是$\mathcal{X}$的[label]补子空间[/label]（或简称[label]补空间[/label]）。此时，$\text{dim}(\mathcal{X}\cap\mathcal{Y})=0$且$\text{dim}(\mathcal{X}+\mathcal{Y})=\text{dim}\mathcal{V}$。补子空间的意义在于：$\text{dim}\mathcal{X}+\text{dim}\mathcal{Y}=\text{dim}\mathcal{V}$。
+
+\subsubsection*{直和}
+
+如果$\mathcal{X}$和$\mathcal{Y}$是向量空间$\mathcal{V}$的子空间，且$\mathcal{Y}$是$\mathcal{X}$的补子空间，则称$\mathcal{V}$是$\mathcal{X}$与$\mathcal{Y}$的[label]直和[/label]]（direct sum），记为：$\mathcal{V}=\mathcal{X}\oplus\mathcal{Y}$，并且有$\text{dim}(\mathcal{X}\oplus\mathcal{Y})=\text{dim}\mathcal{X}+\text{dim}\mathcal{Y}$。从B几何观点来说，要将向量空间$\mathcal{V}$中的向量$\boldsymbol{z}$分解为$\mathcal{X}$-成分的$\boldsymbol{x}$和$\mathcal{Y}$-成分的$\boldsymbol{y}$，其关键技术便在于[label]投影[/label]。
+
+\subsection*{投影}
+
+[label]投影[/lable]是剖析子空间直和的重要工具。设$\mathcal{V}=\mathcal{X}\oplus\mathcal{Y}$，对于$\boldsymbol{z}\in\mathcal{V}$，有唯一$\boldsymbol{x}\in\mathcal{X},\boldsymbol{y}\in\mathcal{Y}$，使得$\boldsymbol{z}=\boldsymbol{x}+\boldsymbol{y}$，其中$\boldsymbol{x}$为向量$\boldsymbol{z}$沿着$\mathcal{Y}$至$\mathcal{X}$的投影；而$\boldsymbol{y}$为向量$\boldsymbol{z}$沿着$\mathcal{X}$至$\mathcal{Y}$的投影。特别地，如果子空间$\mathcal{X}$[label]正交[/label]于$\mathcal{Y}$，则称之为[label]正交投影[/label]，否则为[label]斜投影[/label]。以子空间$\mathcal{V}=\mathbb{R}^3=\mathcal{P}\oplus\mathcal{L}$为例，其中$\mathcal{P}$为一平面，$\mathcal{L}$为平面外一直线，如下图所示，$\boldsymbol{x}\in\mathcal{P}$就是将向量$\boldsymbol{z}$沿着与$\mathcal{L}$平行的直线投影至平面$\mathcal{P}$（斜投影）。
+
+\subsubsection*{投影算子}
+
+如果$\mathbb{R}^n=\mathcal{X}\oplus\mathcal{Y}$，对于任意$\boldsymbol{z}\in\mathbb{R}^n$，要计算$\boldsymbol{z}$沿着$\mathcal{Y}$至$\mathcal{X}$的[label]投影分量[/label]$\boldsymbol{x}$，需设计一个$n \times n$阶矩阵$P$，称为[label]投影算子[/label]（projection operator），$P\boldsymbol{z}=\boldsymbol{x}$便是$\boldsymbol{z}$沿着$\mathcal{Y}$至$\mathcal{X}$的投影。
+
+另一方面，由$\boldsymbol{z}=\boldsymbol{x}+\boldsymbol{y}=P\boldsymbol{z}+\boldsymbol{y}$可以推得：$\boldsymbol{y}=(I-P)\boldsymbol{z}$，其中$I-P$称为$P$的[label]补投影算子[/label]。
+
+子空间$\mathcal{X}$和$\mathcal{Y}$与投影算子$P$和$I-P$的[label]列空间[/label]和[label]零空间[/lable]有着如下重要关系式：
+
+\begin{eqnarray*}
+& \mathcal{X}=C(P)=N(I-P) \\
+& \mathcal{Y}=C(I-P)=N(P) \\
+\end{eqnarray*}
+
+\subsubsection*{正交投影算子}
+
+在复向量空间$\mathbb{C}^n$中，[label]正交分解定理[/label]指的是任意向量$boldsymbol{z}\in\mathbb{C}^n$可唯一分解为$\boldsymbol{z}=\boldsymbol{x}+\boldsymbol{y}$，其中$\boldsymbol{x}\perp\boldsymbol{y},\boldsymbol{x}\in\mathcal{X},\boldsymbol{y}\in\mathcal{X}^{\perp}$，这里的$\mathcal{X}^{\perp}$是子空间$\mathcal{X}$的正交补集，且$\mathbb{C}^n=\mathcal{X}\oplus\mathcal{X}^\perp$。[label]正交投影矩阵[/label]$P$便是将$\mathbb{C}^n$的所有向量投影至$\mathcal{X}$：$\mathcal{X}=\{P\boldsymbol{x}|\boldsymbol{x}\in\mathbb{C}^n\}=C(P)$，且$\mathcal{X}^\perp=\{\boldsymbol{x}\in\mathbb{C}^n|P\boldsymbol{x}=0\}=N(P)$。
+
+令$\mathcal{X}$是$\mathbb{C}^n$的一个子空间，且$P$是子空间$\mathcal{X}$的正交投影矩阵（正交投影算子），则$P$满足如下性质：
+
+- 对于所有$\boldsymbol{x}\in\mathcal{X}$，有：$P\boldsymbol{x}=\boldsymbol{x}$；
+
+- 对于所有$\boldsymbol{x}\in\mathbb{C}^n$，有：$(\boldsymbol{x}-P\boldsymbol{x})\in\mathcal{X}^\perp$；
+
+indent 上述两个性质的意义在于：1）子空间$\mathcal{X}$中任何向量的投影为其本身；2）正交投影后的[label]残差[/label]正交于投影子空间。
+
+最后，给出正交投影矩阵的主要界定条件：
+
+- 若$P$为一正交投影矩阵，则$P=P^2=P^*$，反之亦然；
+
+- 若$P$为一正交投影矩阵，则对于任意$\boldsymbol{x}\in\mathbb{C}^n$，有：$\|P\boldsymbol{x}\|_2\leq\|\boldsymbol{x}\|_2$。
+
+
+%\begin{eqnarray*}
+%& M=\dfrac{}
+%\end{eqnarray*}
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

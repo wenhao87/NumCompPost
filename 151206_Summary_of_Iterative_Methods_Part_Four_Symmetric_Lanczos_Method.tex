@@ -1,0 +1,480 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{迭代法整理（4）：对称Lanczos迭代法}
+
+对于任意矩阵$A$，上文给出了其[label]广义极小残差[/label]（GMRES）方法的完整说明和算法实现和分析（见迭代法整理（3）：GMRES方法的算法实现和分析一文），且最后该方法的本质是在求解如下一个最小二乘问题：
+
+\begin{equation}
+	\label{eq:lsqgmres}
+	\begin{aligned}
+ 		&
+		\min\|\boldsymbol{b}-A\boldsymbol{x}_k\|_2 =
+		\min\|\boldsymbol{b}-AQ_k\boldsymbol{y}_k\|_2 =
+		\min\|\boldsymbol{b}-Q_{k+1}H_k\boldsymbol{y}_k\|_2 \\
+		\Longleftrightarrow\quad &
+		\boldsymbol{y}_k=\text{argmin}_{\boldsymbol{y}}
+		\left\|Q^T_{k+1}\boldsymbol{b}-H_k\boldsymbol{y}\right\|_2
+		=\text{argmin}_{\boldsymbol{y}}
+		\left\|
+			\begin{pmatrix} \|\boldsymbol{b}\|_2 \\ 0 \\ \vdots \end{pmatrix} - H_k\boldsymbol{y}
+		\right\|_2
+	\end{aligned}
+\end{equation}
+
+在广义极小残差（GMRES）方法中，$H_k$是一个$(k+1) \times k$阶的上Hessenberg矩阵，最后利用Givens平面旋转矩阵及其酉矩阵的特性，广义极小残差（GMRES）方法的最小二乘问题最终简化为了$\boldsymbol{y}_k=\text{argmin}_{\boldsymbol{y}}\left\|\boldsymbol{b}_k-R_k\boldsymbol{y}\right\|_2$，利用回代法即可求解得到最小二乘解$\boldsymbol{y}_k$。并且在实际过程中，往往不需要显式计算$\boldsymbol{x}_k$，而是用$\boldsymbol{b}_k$中的第$k+1$个元素的绝对值$|b_{k+1}|$作为精度判断条件。
+
+[alert type="info"]特别需要注意的是：式（\ref{eq:lsqgmres}）最后的$\boldsymbol{b}$实际指的是初始残差$\boldsymbol{r}_0$。实际过程中，不论初始向量$\boldsymbol{x}_0$是否为零，都可以计算得到初始残差$\boldsymbol{r}_0$后覆写向量$\boldsymbol{b}$，从而避免了额外的存储。[/alert]
+
+如果矩阵$A$是[label]对称矩阵[/lable]，那么可以对广义极小残差（GMRES）方法进行简化，理由是式（\ref{eq:lsqgmres}）中的上Hessenberg矩阵$H_k$可以简化为[label]三对角对称矩阵[/label]（假定这里的$H_k$是去掉最后一行后的$k \times k$阶矩阵）：
+
+\begin{equation}
+	\label{eq:tk}
+	\begin{aligned}
+		& AQ_k=Q_kH_k \\
+		\Longrightarrow\quad &
+		\begin{aligned}
+			H_k &= Q_k^{-1}AQ_k=Q_k^TAQ_k \\
+			H_k^T &= (Q_k^TAQ_k)^T=H_k \\
+		\end{aligned}
+	\end{aligned}\quad,\quad
+	H_k=
+	\begin{pmatrix}
+		\alpha_1 & \beta_1 & & & \\
+		\beta_1 & \alpha_2 & \beta_2 & & \\
+		& \ddots & \ddots & \ddots & \\
+		& & \beta_{k-2} & \alpha_{k-1} & \beta_{k-1}\\
+		& & & \beta_{k-1} & \alpha_k \\
+	\end{pmatrix}=T_k
+\end{equation}
+
+由于上Hessenberg矩阵$H_k$既要满足上Hessenberg矩阵的结构特性（[label]下带宽[/label]为$1$），同时又要满足对称矩阵的特性，所以此时的$H_k$必须为三对角对称矩阵。在Lanczos迭代法中，将其改记为$T_k$，并且由于其上三角部分为零，所以大大简化了Arnoldi方法中Gram-Schmidt正交化所需要的计算量。
+
+另一方面，在[label]Krylov子空间法[/label]中通常将近似解$\boldsymbol{x}_k$表示为$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$（一般设$\boldsymbol{x}_0=0$）的形式，从而转换为求解式（\ref{eq:lsqgmres}）的最小二乘问题，即求解最小二乘解$\boldsymbol{y}_k$。这就是上面的广义极小残差（GMRES）方法，其本质是极小化每一步迭代的B残差，为此它需要用到此前的所有搜索方向$\{\boldsymbol{q}_i\}_{i=1}^k$。但是，如果能将$\boldsymbol{x}_k$表示为$\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+\lambda_k\boldsymbol{q}_k$的形式的话，也就是说希望只用最新得到的标准基地向量$\boldsymbol{q}_k$就能计算$\boldsymbol{x}_k$，但事实上，不论是广义极小残差（GMRES）方法还是共轭梯度（CG）方法，都无法实现这一点。
+
+于是，退而求其次，希望能将$\boldsymbol{x}_k$表示为$\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+\alpha_k\boldsymbol{p}_k$的形式，$\alpha_k$是$T_k$中的主对角元，而这里的$\boldsymbol{p}_k$是Krylov子空间的另一个不同于$\boldsymbol{q}_k$的基底向量，从而避免了存储所有的基底向量$Q_k$。因此，针对$\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+\alpha_k\boldsymbol{p}_k$的形式，需要推导一组新的基底，以及另一种极小化衡量标准（这里极小化的是误差的[label]$A$-范数[/label]，而在GMRES方法中极小化的是残差的[label]$L^2$-范数[/label]），最终得到的便是[label]对称Lanczos迭代方法[/label]（后面会给出选择$A$-范数的理由）。
+
+[alert type="success"]简单来说，对称Lanczos迭代方法不仅减少了Arnoldi方法中Gram-Schmidt正交化的计算量，还通过引入一组新的基底向量，避免了存储所有的基底向量，为此它需要极小化的不是GMRES方法中的残差，而是[label]误差[/label]的[label]$A$-范数[/label]。[/alert]
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsection*{最小化误差的$A$-范数}
+
+如果矩阵$A$是[label]对称正定矩阵[/label]（SPD），则可以定义一个向量$\boldsymbol{x}$的[label]$A-$范数[/label]为：$\|\boldsymbol{x}\|_A=\sqrt{\boldsymbol{x}^TA\boldsymbol{x}}$。那么在Krylov子空间法中，第$k$步迭代时的误差$\boldsymbol{e}_k=\boldsymbol{x}-\boldsymbol{x}_k$对应的$A$-范数为：
+
+\begin{equation}
+	\label{eq:erra}
+	\begin{aligned}
+		\|\boldsymbol{e}_k\|_A^2=(\boldsymbol{e}_k)^TA\boldsymbol{e}_k
+		&=(\boldsymbol{x}-\boldsymbol{x}_k)^TA(\boldsymbol{x}-\boldsymbol{x}_k)
+		=(\boldsymbol{x}^T-\boldsymbol{x}_k^T)(\boldsymbol{b}-A\boldsymbol{x}_k) \\
+		&=\boldsymbol{x}^T\boldsymbol{b}-\boldsymbol{x}^TA\boldsymbol{x}_k-\boldsymbol{x}_k^T\boldsymbol{b}+\boldsymbol{x}^T_kA\boldsymbol{x}_k \\
+		&=\boldsymbol{x}^T\boldsymbol{b}-(A\boldsymbol{x})^T\boldsymbol{x}_k-\boldsymbol{x}_k^T\boldsymbol{b}+\boldsymbol{x}_k^TA\boldsymbol{x}_k \\
+		&=\boldsymbol{x}^T\boldsymbol{b}+\boldsymbol{x}_k^TA\boldsymbol{x}_k-2\boldsymbol{x}_k^T\boldsymbol{b} \\
+		&=\boldsymbol{x}^T\boldsymbol{b}+2
+		\underbrace{
+			\left(
+				\dfrac{1}{2}\boldsymbol{x}_k^TA\boldsymbol{x}_k-\boldsymbol{x}_k^T\boldsymbol{b}
+			\right)
+		}_{\phi(\boldsymbol{x}_k)}
+	\end{aligned}
+\end{equation}
+
+[alert type="info"]要得到像式（\ref{eq:erra}）最后这样的结果，就必须要求矩阵$A$是对称的，所以就有了对称Lanczos方法，以及更进一步针对对称正定矩阵的共轭梯度（CG）方法。[/alert]
+
+因此，最小化误差的$A$-范数就等价于极小化式（\ref{eq:erra}）中的函数$\phi(\boldsymbol{x})$，即：
+
+\begin{equation}
+	\label{eq:xk}
+	\begin{aligned}
+		\boldsymbol{x}_k
+		&=\text{argmin}_{\boldsymbol{x}}\phi(\boldsymbol{x}) \\
+		&=\text{argmin}_{\boldsymbol{x}}\left(
+			\frac{1}{2}\boldsymbol{x}^TA\boldsymbol{x}-\boldsymbol{x}^T\boldsymbol{b}
+		\right)
+	\end{aligned}
+\end{equation}
+
+事实上，如果$\boldsymbol{x}_k$是使式（\ref{eq:xk}）中的$\phi{(\boldsymbol{x})}$达到极小值的解，那么其含义也等价于函数在$\boldsymbol{x}_k$处的[label]梯度[/label]为$0$；另一方面，同样将$\boldsymbol{x}_k$表示为$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$的形式（假设$\boldsymbol{x}_0=0$），于是有：
+
+\begin{equation}
+	\label{eq:yk}
+	\left.
+		\begin{aligned}
+			\nabla_{\boldsymbol{y}}f_k(\boldsymbol{y}_k) &=
+			\nabla_{\boldsymbol{y}}\left(
+				\dfrac{1}{2}\boldsymbol{y}_k^TQ_k^TAQ_k\boldsymbol{y}_k-\boldsymbol{y}_k^TQ_k\boldsymbol{b}
+			\right) \\
+			&=Q_k^TAQ_k\boldsymbol{y}_k-Q_k\boldsymbol{b}
+			=T_k\boldsymbol{y}_k-Q_k\boldsymbol{b}=0 \\
+		\end{aligned}\quad
+	\right\}\Longrightarrow\quad
+	T_k\boldsymbol{y}_k = \hat{\boldsymbol{b}}
+\end{equation}
+
+由此可以看到，式（\ref{eq:yk}）最后得到的所要求解的方程组和广义最小残差（GMRES）方法最后所得到的并无二异，只不过原来的上Hessenberg矩阵$H_m$变成了现在的三对角对称矩阵$T_k$。
+
+[alert type="info"]事实上，对于线性方程组$A\boldsymbol{x}=\boldsymbol{b}$，如果$A$是对称矩阵，方程组的求迭代解等价于极小化每一步残差的$L^2$-范数，同时也等价于极小化每一步误差的$A$-范数；如果$A$是任意矩阵，方程组的求解等价于极小化每一步残差的$L^2$-范数（即广义极小残差(GMRES)方法），也等价于极小化每一步误差的[label]$A^TA$-范数[/label]（即用$A^TA$得到对称性）。[/alert]
+
+\subsection*{三对角对称矩阵$T_k$}
+
+式（\ref{eq:yk}）最后得到的方程组其本质仍然还是广义极小残差（GMRES）方法所要求解的问题，并且它需要用到先前所有的基底向量$Q_k$，其根本原因在于$\boldsymbol{x}_k$的表示形式仍然为$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$（假设$\boldsymbol{x}_0$为$0$）。在改进针对矩阵$A$为对称矩阵时的广义极小残差（GMRES）方法之前，有必要先讨论一下三对角对称矩阵$T_k$的分解和求解过程。
+
+\subsubsection*{三对角对称矩阵的分解}
+
+在广义极小残差（GMRES）方法中，上Hessenberg矩阵$H_k$的分解使用的是基于[label]Givens平面旋转变换[/label]的[label]QR分解[/label]（见迭代法整理（3）：GMRES方法的算法实现和分析一文），而针对三对角对称矩阵$T_k$，可以使用[label]LU分解[/label]，或者[label]$LDL^T$分解[/label]，将其分解为$T_k=L_kD_kL_k^T$的形式。再结合式（\ref{eq:tk}）中$T_k$的形式，便能得到：
+
+\begin{equation*}
+	\label{eq:lkdk}
+	\begin{aligned}
+		L_k &= \begin{pmatrix}
+			1 & & & & \\
+			\mu_1 & 1 & & & \\
+			& \ddots & \ddots & & \\
+			& & \mu_{k-2} & 1 & \\
+			& & & \mu_{k-1} & 1 \\
+		\end{pmatrix}\quad,\quad
+		D_k = \begin{pmatrix}
+			d_1 & & & & \\
+			& d_2 & & & \\
+			& & \ddots & & \\
+			& & & d_{k-1} & \\
+			& & & & d_k \\
+		\end{pmatrix}
+	\end{aligned}
+\end{equation*}
+
+\begin{equation}
+	\label{eq:dimui}
+	\left.
+		\begin{aligned}
+			\alpha_i &= \mu_{i-1}d_{i-1}\mu_{i-1}+d_i \\
+			\beta_{i-1} &= \mu_{i-1}d_{i-1} \\
+			\beta_i &= d_i\mu_i \\
+		\end{aligned}\quad
+	\right\}\Longrightarrow
+	\left.
+		\begin{aligned}
+			d_i &= \alpha_i - \beta_{i-1}\mu_{i-1} \\
+			\mu_i &= \beta_i / d_i \\
+		\end{aligned}\quad
+	\right|_{
+		\substack{
+			d_1 = \alpha_1 \\
+			\mu_1 = \beta_1/d_1 \\
+		}
+	}
+\end{equation}
+
+根据式（\ref{eq:dimui}）的递推关系式，三对角对称矩阵$T_k$的$LDL^T$分解算法可以实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Factorization of Symmetric Tridiagonal Matrix}
+\begin{algorithm}[H]
+	$d_1 \gets \alpha_1$\;
+	$\mu_1 \gets \beta_1/d_1$\;
+	\For{$i \gets 2$ \KwTo $k$}{
+		$d_i \gets \alpha_i-\beta_{i-1}\mu_{i-1}$\;
+		$\mu_i \gets \beta_i/d_i$\;
+	}
+\end{algorithm}
+%[/latex]
+
+[alert type="error"]B注意：上述算法对[label]舍入误差[/label]的敏感性正比于矩阵$A$的[label]条件数[/label]，尤其在矩阵$A$是对称未定（indefinite）的情况下，算法的数值稳定性很差。另外值得一提的是，当$k>i$时，此前计算得到的$\alpha_i$和$\beta_i$不会改变，因此也不会影响$d_i$和$\mu_i$，所以在第$k$步迭代时，只需要计算$d_k$和$\mu_{k-1}$即可。[/alert]
+
+\subsubsection*{三对角对称矩阵的求解}
+
+$LDL^T$分解有助于使用前代和回代法求解式（\ref{eq:yk}）中的解$\boldsymbol{y}_k$，即：对于$L_kD_kL_k^T\boldsymbol{y}_k=\hat{\boldsymbol{y}_k}$，由于$L_kD_k$具有[label]下三角[/label]的形式，因此可以令$\boldsymbol{p}_k=L_k^T\boldsymbol{y}_k$，求解$(L_kD_k)\boldsymbol{p}_k=\hat{\boldsymbol{b}}_k$即可，这就是[label]前代法[/label]；得到$\boldsymbol{p}_k$之后，由于$L_k^T$具有[label]上三角[/label]形式，则对于$L_k^T\boldsymbol{y}_k=\boldsymbol{p}_k$，可以利用[label]回代法[/label]求解得到$\boldsymbol{y}_k$。
+
+[alert type="error"]B特别需要注意的是，这里的$\hat{\boldsymbol{b}}$具有式（\ref{eq:lsqgmres}）中的形式，并且由于$T_k$使用的是$LDL^T$分解，因此$\hat{\boldsymbol{b}}$在每一步迭代过程中都保持不变。[/alert]
+
+前代过程$(L_kD_k)\boldsymbol{p}_k=\hat{\boldsymbol{b}}$的矩阵表示形式如下：
+
+\begin{equation*}
+	\label{eq:fwd}
+	\begin{pmatrix}
+		d_1 & & & & & \\
+		\mu_1d_1 & d_2 & & & & \\
+		& \ddots & \ddots & & & \\
+		& & \mu_{i-1}d_{i-1} & d_i & & \\
+		& & & \ddots & \ddots & \\
+		& & & & \mu_{k-1}d_{k-1} & d_{k} \\
+	\end{pmatrix}
+	\begin{pmatrix}
+		p_1 \\ p_2 \\ \vdots \\ p_i \\ \vdots \\ p_k \\
+	\end{pmatrix}=
+	\begin{pmatrix}
+		\|\boldsymbol{b}\|_2 \\ 0 \\ \vdots \\ 0 \\ \vdots \\ 0 \\
+	\end{pmatrix}
+\end{equation*}
+
+\begin{equation}
+	\label{eq:pi}
+	\begin{array}{c}
+		d_1p_1 = \|\boldsymbol{b}\|_2 \\
+		\mu_{i-1}d_{i-1}p_{i-1}+d_ip_i = 0 \\
+		p_k=-\dfrac{\mu_{k-1}d_{k-1}p_{k-1}}{d_k}
+	\end{array} \quad\Longrightarrow\quad
+	\begin{aligned}
+		p_i &= -\dfrac{\mu_{i-1}(d_{i-1}p_{i-1})}{d_i}
+		= +\dfrac{\mu_{i-1}\mu_{i-2}(d_{i-2}p_{i-2})}{d_i} \\
+		&= (-1)^{i-1}\dfrac{\mu_{i-1}\cdots\mu_{1}(d_1p_1)}{d_i} \\
+		&= (-1)^{i-1}\dfrac{\mu_{i-1}\cdots\mu_{1}\|\boldsymbol{b}\|_2}{d_i}
+	\end{aligned}
+\end{equation}
+
+根据式（\ref{eq:pi}）的递推关系式，三对角对称矩阵求解的前代过程算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Forward Substitution}
+\begin{algorithm}[H]
+	$s \gets \|\boldsymbol{b}\|_2$\;
+	$p_1 \gets s/d_1$\;
+	\For{$i \gets 2$ \KwTo $k$}{
+		$s \gets \mu_{i-1}s$\;
+		$p_i \gets (-1)^{i-1}s/d_i$\;
+	}
+\end{algorithm}
+%[/latex]
+
+[alert type="info"]同样，第$k$步迭代时，只需计算$p_k$即可，而前$i$步（$i<k$）计算得到的元素$p_i$均保持不变。[/alert]
+
+类似地，回代过程$L_k^T\boldsymbol{y}_k=\boldsymbol{p}_k$的矩阵表示如下：
+
+\begin{equation}
+	\label{eq:bwd}
+	\begin{pmatrix}
+		1 & \mu_1 & & & & \\
+		& \ddots & \ddots & & & \\
+		& & 1 & \mu_i & & \\
+		& & & \ddots & \ddots & \\
+		& & & & 1 & \mu_{i-1} \\
+		& & & & & 1 \\
+	\end{pmatrix}
+	\begin{pmatrix}
+		y_1 \\ \vdots \\ y_i \\ \vdots \\ y_{k-1} \\ y_k \\
+	\end{pmatrix}=
+	\begin{pmatrix}
+		p_1 \\ \vdots \\ p_i \\ \vdots \\ p_{k-1} \\ p_k \\
+	\end{pmatrix}
+\end{equation}
+
+然而，从式（\ref{eq:bwd}）可以看出，第$k$迭代过程中，虽然前代时只需要更新$p_k$，但回代过程中整个$\boldsymbol{y}_k$都需要重新计算。问题归结于最开始所说的将$\boldsymbol{x}_k$表示为了$\boldsymbol{x}_k=Q_k\boldsymbol{y}_k$的形式，它也意味着需要存储所有此前的基底向量$\boldsymbol{q}_i$。事实上，这种次优的求解方式是可以进一步得到改进的。
+
+\subsection*{对称Lanczos迭代法}
+
+为了避免存储先前的所有搜索方向$\boldsymbol{q}_i$，需要为Krylov子空间$\mathcal{k}_k$推导一组新的基底向量，也称为[label]Lanczos基底[/label]。由于每一步迭代只更新$\boldsymbol{p}_k$中的最后一个元素$p_k$，因此希望将$\boldsymbol{x}_k$表示为和$p_k$相关的形式，即：
+
+\begin{equation}
+	\label{eq:xkckpk}
+	\begin{aligned}
+		\boldsymbol{x}_k &= Q_k\boldsymbol{y}_k \\
+		&= (Q_kL_k^{-T})(L_k^T\boldsymbol{y}_k)
+		= C_k\boldsymbol{p}_k \\
+		C_k &=
+		\begin{pmatrix}
+			\boldsymbol{c}^k_1 & \boldsymbol{c}^k_2 & \cdots & \boldsymbol{c}^k_k
+		\end{pmatrix}
+	\end{aligned} \quad\Longrightarrow\quad
+	\begin{aligned}
+		\boldsymbol{x}_k &=
+		\begin{pmatrix}
+			\boldsymbol{c}^k_1 & \cdots & \boldsymbol{c}^k_k
+		\end{pmatrix}\boldsymbol{p}_k \\
+		&= p_1\boldsymbol{c}_1^k + \cdots p_{k-1}\boldsymbol{c}_{k-1}^k + p_k\boldsymbol{c}_k^k \\
+		&= \begin{pmatrix}
+			\boldsymbol{c}^k_1 & \cdots & \boldsymbol{c}^k_{k-1}
+		\end{pmatrix}\boldsymbol{p}_{k-1}+p_k\boldsymbol{c}_k^k \\
+		&= \boldsymbol{x}_{k-1}+p_k\boldsymbol{c}_k^k
+	\end{aligned}
+\end{equation}
+
+indent其中，$C_k$是第$k$步迭代时使用的一组新的基底向量，且其满足$C_k=Q_kL_k^{-T}$。那么，为了计算$\boldsymbol{c}_k^k$，可以考虑关系式：$C_kL_k^T=Q_k$，即：
+
+\begin{equation*}
+	\begin{pmatrix}
+		~ & ~ & ~ & ~ & ~ \\
+		~ & ~ & ~ & ~ & ~ \\
+		\boldsymbol{c}_1^k & \boldsymbol{c}_2^k & \cdots &
+		\boldsymbol{c}_{k-1}^k & \boldsymbol{c}_k^k \\
+		~ & ~ & ~ & ~ & ~ \\
+		~ & ~ & ~ & ~ & ~ \\
+	\end{pmatrix}
+	\begin{pmatrix}
+		1 & \mu_1  & & & \\
+		& 1 & \mu_2 & & \\
+		& & \ddots & \ddots & \\
+		& & & 1 & \mu_{k-1} \\
+		& & & & 1 \\
+	\end{pmatrix}=
+	\begin{pmatrix}
+		~ & ~ & ~ & ~ & ~ \\
+		~ & ~ & ~ & ~ & ~ \\
+		\boldsymbol{q}_1 & \boldsymbol{q}_2 & \cdots &
+		\boldsymbol{q}_{k-1} & \boldsymbol{q}_k \\
+		~ & ~ & ~ & ~ & ~ \\
+		~ & ~ & ~ & ~ & ~ \\
+	\end{pmatrix}
+\end{equation*}
+
+\begin{equation}
+	\label{eq:ciqi}
+	\begin{aligned}
+		\boldsymbol{c}_1^k &= \boldsymbol{q}_1 \\
+		\boldsymbol{c}_i^k &= \boldsymbol{q}_i-\mu_{i-1}\boldsymbol{c}^k_{i-1}
+	\end{aligned} \quad,\quad
+	i=2,\cdots,k
+\end{equation}
+
+[alert type="success"]从式（\ref{eq:ciqi}）可以得出一个很重要的结，即：$\boldsymbol{c}^k_i$与迭代步数具有无关性。换言之，可以去除基底向量$\boldsymbol{c}_i^k$的上标$k$。因此，$C_k$可以表示为和$Q_k$类似的形式，即：$C_k(\boldsymbol{c}_1,\cdots,\boldsymbol{c}_k)$。另外，关于$\{\boldsymbol{c}_1,\cdots,\boldsymbol{c}_k\}$能够扩展Krylov子空间$\mathcal{K}_k$的理由将在后面给出证明。[/alert]
+
+最后，结合式（\ref{eq:xkckpk}）和式（\ref{eq:ciqi}），便能得到新的$\boldsymbol{x}_m$的计算表达式，即：
+
+\begin{equation}
+	\label{eq:lancxk}
+	\boldsymbol{x}_k = \boldsymbol{x}_{k-1}+p_k\boldsymbol{c}_k
+\end{equation}
+
+[alert tpye="success"]式（\ref{eq:lancxk}）说明$\boldsymbol{x}_k$的计算只需要用到两个基底向量$\boldsymbol{q}_i$和$\boldsymbol{c}_{i-1}$和一个最新计算得到的$p_k$即可，从而避免了存储所有的基底向量。[/alert]
+
+\subsection*{对称Lanczos迭代法算法实现}
+
+\subsubsection*{对称Lanczos迭代法算法流程}
+
+在给出对称Lanczos迭代法的算法实现之前，先将其算法流程描述如下：
+
+- 首先，以初始残差（$\boldsymbol{x}_0=0$时即为$\boldsymbol{b}$）作为Krylov子空间的种子向量$\boldsymbol{v}$。然后根据Arnoldi方法，第$k$步迭代的正交化过程需要用到此前的所有基底向量$\{\boldsymbol{q}_i\}_{i=1}^k$，并计算上Hessenberg矩阵$H_m$的最后一列，而在对称Lanczos方法中，只需要用到$\boldsymbol{q}_{k-1}$和$\boldsymbol{q}_k$，而$h_{k-1,k}$、$h_{kk}$、$h_{k+1,k}$三个元素则对应$T_k$中的$\beta_{k-1}$、$\alpha_k$、$\beta_{k}$，并且根据对称性，$\beta_{k-1}$已在上一步中求得。因此，整个算法过程中只需要使用一个变量$\alpha_K$和两个$\beta_{K-1}$和$\beta_{K}$变量，以及两个$\boldsymbol{q}_{K-1}$、$\boldsymbol{q}_{K}$向量即可，$\boldsymbol{q}_{k+1}$可以覆盖向量$\boldsymbol{v}$。
+
+- 根据式（\ref{eq:dimui}）$T_k$的$L_kD_kL_k^T$分解，在第$k$步迭代时，只需借由$\alpha_k$、$\beta_{k-1}$、$\beta_k$以及上一步的$\mu_{k-1}$便可以计算得到$d_i$和$\mu_i$，从而实现了$L_kD_kL_k^T$分解。另一方面，由于$\mu_k$要在第$k+1$步时使用，而它又可以表示为关于$\mu_{k-1}$的表达式，因此整个计算过程中，除了用到一个变量$d_K$外，只需要使用一个$\mu_{K-1}$变量即可。
+
+- 然后在第$k$步迭代时，需要计算向量$\boldsymbol{p}_k$中的第$k$个元素$p_k$，而根据式（\ref{eq:pi}）中$p_k$的表达式，它有关于$\mu_{k-1}$、$d_{k-1}$、$p_{k-1}$和$d_k$，因此整个计算过程中，还需要一个变量$d_{K-1}$存放$d_{k-1}$，以及$p_{K-1}$和$p_K$两个变量。
+
+- 最后，根据式（\ref{eq:ciqi}）中$\boldsymbol{c}_k$的表达式可知，它有关于$\boldsymbol{q}_k$、$\mu_{k-1}$和$\boldsymbol{c}_{k-1}$。因此，整个计算过程中，还需要两个向量$\boldsymbol{c}_K$和$\boldsymbol{c}_{K-1}$。至此，便能完成最后式（\ref{eq:lancxk}）的计算，实现整个对称Lanczos算法的流程。
+
+\subsubsection*{对称Lanczos迭代法算法实现}
+
+依据上述的算法描述即可实现对称Lanczos迭代法，需要说明的是算法实现中的$K$与迭代步数$k$无关，它是一个变量名称，并用$K-1$和$K$来区分上一步和当前步的变量。因此，对于给定对称矩阵$A\in\mathbb{R}^{n \times n}$，$\boldsymbol{b}\in\mathbb{R}^n$，并假定初始向量$\boldsymbol{x}_0=0$，则对称Lanczos迭代算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Symmetric Lanczos Method}
+\begin{algorithm}[H]
+	\tcp{Initialization}
+	$\boldsymbol{v} \gets \boldsymbol{b}$
+	\tcp*[r]{residual/basis/$\boldsymbol{q}_{k+1}$ vector}
+	$\beta_{K-1} \gets 0$
+	\tcp*[r]{$\beta_{k-1}=0$ in step $1$}
+	$\beta_{K} \gets \|\boldsymbol{v}\|_2$
+	\tcp*[r]{normalize $\boldsymbol{v}$ as basis $\boldsymbol{q}_1$}
+	$\boldsymbol{q}_K \gets 0$
+	\tcp*[r]{$\boldsymbol{q}_{k-1}=0$ in step $1$}
+	\For{$k \gets 1$ \KwTo $m$} {
+		\tcp{MGS-based Arnoldi method}
+		\tcp{$\beta_k\boldsymbol{q}_{k+1}=A\boldsymbol{q}_k-
+			(\boldsymbol{q}_k^T\cdot A\boldsymbol{q}_k)
+			\boldsymbol{q}_k-(\boldsymbol{q}_{k-1}^T \cdot
+			A\boldsymbol{q}_k)\boldsymbol{q}_{k-1}$}
+		$\boldsymbol{q}_{K-1} \gets \boldsymbol{q}_K$
+		\tcp*[r]{get $\boldsymbol{q}_k$ from
+			previous step, $h_{k-1,k}$}
+		$\boldsymbol{q}_K \gets \boldsymbol{v}/\beta_K$
+		\tcp*[r]{get $\boldsymbol{q}_{k+1}$ from previous step}
+		$\boldsymbol{v}=A\boldsymbol{q}_K$
+		\tcp*[r]{for basis $\boldsymbol{q}_{k+1}$}
+		$\alpha_K \gets \boldsymbol{q}_K^T\boldsymbol{v}$
+		\tcp*[r]{$h_{kk}$}
+		$\boldsymbol{v} \gets \boldsymbol{v} - \alpha_K\boldsymbol{q}_K - \beta_{K-1}\boldsymbol{q}_{K-1}$
+		\tcp*[r]{Gram-Schmidt Ortho}
+		$\beta_{K-1} \gets \beta_{K}$
+		\tcp*[r]{set $\boldsymbol{q}_k$ as
+			$\boldsymbol{q}_{k-1}$ in next step}
+		$\beta_K \gets \|\boldsymbol{v}\|_2$
+		\tcp*[r]{$h_{k+1,k}$}
+		\tcp{Lanczoos Method}
+		\eIf{$k=1$} {
+			\tcp{Solve $LDL^T$ Factorization: $d_1$}
+			$d_K \gets \alpha_K$
+			\tcp*[r]{$d_1=\alpha_1$}
+			\tcp{Solve $\boldsymbol{x}_k$}
+			$p_K \gets \beta_{K-1}/\alpha_K$
+			\tcp*[r]{$p_1=\|\boldsymbol{b}\|_2/d_1=\beta_1/\alpha_1$, use new $\beta_{K-1}$}
+			$\boldsymbol{c}_K \gets \boldsymbol{q}_K$
+			\tcp*[r]{$\boldsymbol{c}_1=\boldsymbol{q}_1$}
+			$\boldsymbol{x} \gets p_K\boldsymbol{c}_K$
+			\tcp*[r]{$\boldsymbol{x}_1=p_1\boldsymbol{c}_1$}
+		} {
+			\tcp{Solve $LDL^T$ Factorization: $d_k,\mu_{k-1}$}
+			$d_{K-1} \gets d_K$
+			\tcp*[r]{get $d_k$ from previous step}
+			$\mu_{K-1} \gets \beta_{K-1}/d_{K-1}$
+			\tcp*[r]{$\mu_i=\beta_i/d_i$}
+			$d_K \gets \alpha_K-\beta_{K-1}\mu_{K-1}$
+			\tcp*[r]{calculate $d_k$}
+			\tcp{Solve $\boldsymbol{x}_k$}
+			$p_{K-1} \gets p_{K}$
+			\tcp*[r]{get $p_k$ from previous step}
+			$p_K \gets -(\mu_{K-1}d_{K-1}p_{K-1})/d_K$
+			\tcp*[r]{calculate $p_k$}
+			$\boldsymbol{c}_{K-1} \gets \boldsymbol{c}_K$
+			\tcp*[r]{get $\boldsymbol{c}_k$ from previous step}
+			$\boldsymbol{c}_K \gets \boldsymbol{q}_K-\mu_{K-1}\boldsymbol{c}_{K-1}$
+			\tcp*[r]{calculate $\boldsymbol{c}_k$}
+			$\boldsymbol{x} \gets \boldsymbol{x}+p_K\boldsymbol{c}_K$
+			\tcp*[r]{$\boldsymbol{x}_k=\boldsymbol{x}_{k-1}+p_k\boldsymbol{c}_k$}
+		}
+	}
+\end{algorithm}
+%[/latex]
+
+%[/aside_content]
+
+
+% H2, H3
+% \subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%\let\oldnl\nl
+%\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{Jacobi Method}
+\begin{algorithm}[H]
+\For{$k\gets1,\cdots$}{
+	$\boldsymbol{r}\gets\boldsymbol{b}-A\boldsymbol{x}$\;
+	\For{$i\gets 1$ \KwTo $n$}{
+		$\delta\gets r_i/A_{ii}$\;
+		$x_i\gets x_i+\delta$\;
+	}
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}

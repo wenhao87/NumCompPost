@@ -1,0 +1,196 @@
+\documentclass[UTF8,nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=1in,top=1in]{geometry}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\begin{document}
+
+% Title
+
+\section*{详解循环子空间及其相关特性}
+
+在上文（见详解不变子空间和限定算子表示矩阵一文）中，介绍了一种特殊的[label]不变子空间[/label]：[label]循环子空间[/label]，并且在文末给出了基于[label]循环向量[/label]$\boldsymbol{v}$的循环子空间$\mathcal{X}$，在[lable]限定算子[/label]$T_{/\mathcal{X}_{\boldsymbol{v}}}$上关于基底向量$\mathfrak{B}_{\boldsymbol{v}}$的表示矩阵：$\big(T_{/\mathcal{X}_{\boldsymbol{v}}}\big)_{\mathfrak{B}_{\boldsymbol{v}}}$，而它其实也是一个多项式的[label]相伴矩阵[/label]。本文将从相伴矩阵切入，详细讨论循环子空间，并利用循环子空间证明[lable]Cayley-Hamilton定理[/label]。
+
+\subsection*{相伴矩阵}
+
+给定一个$n \times n$阶矩阵$A$，在矩阵的最小多项式及其应用一文中指出，[label]最小多项式[/label]$m_A(t)$为次数（指最高次项）最小的[label]首一消减多项式[/label]（最高此项系数为$1$），即：$m_A(A)=0$。反过来，给定任意首一多项式$p(t)$：
+
+\[
+p(A)=t^n+a_{n-1}t^{n-1}+\cdots+a_1t+a_0
+\]
+
+indent事实上总能找到一个方阵，使其最小多项式恰好为该多项式$p(t)$，这个方阵便称为[lable]相伴矩阵[/label]（companion matrix），且其形式为：
+
+\begin{equation}
+\label{eq:cmat}
+C=\begin{pmatrix}
+0&0&\cdots&0&-a_0\\
+1&0&\cdots&0&-a_1\\
+\vdots&\ddots&\ddots&\vdots&\vdots\\
+0&\cdots&1&0&-a_{n-2}\\
+0&0&\cdots&1&-a_{n-1}
+\end{pmatrix}
+\end{equation}
+
+\subsubsection*{消减多项式的证明}
+
+如果$p(t)$是$C$的[label]消减多项式[/label]，即：$p(C)=C^n+a_{n-1}C^{n-1}+\cdots+a_1C+a_)=0$，其证明思路是：证明对$\boldsymbol{e}_i,i=1,\cdots,n$，有$p(C)\boldsymbol{e}_i=0$，其中$\boldsymbol{e}_i$是第$i$元为$1$的[label]标准单位向量[/label]。利用$C$的结构性质，可以得到：
+
+\begin{align}
+\label{eq:cei}
+\begin{split}
+C^{0}\boldsymbol{e}_1 &= \boldsymbol{e}_1,\quad C^{1}\boldsymbol{e}_1=\boldsymbol{e}_2,\quad C^{2}\boldsymbol{e}_1=C\boldsymbol{e}_2=\boldsymbol{e}_3,\quad C^{3}\boldsymbol{e}_1= C\boldsymbol{e}_3=\boldsymbol{e}_4\\
+C^{n-1}\boldsymbol{e}_1 &= C\boldsymbol{e}_{n-1}=\boldsymbol{e}_n,\quad C^{n}\boldsymbol{e}_1=C\boldsymbol{e}_n=
+-a_0\boldsymbol{e}_1-a_1\boldsymbol{e}_2-\cdots-a_{n-1}\boldsymbol{e}_n
+\end{split}
+\end{align}
+
+indent也就是说，存在关系式$C^{i-1}\boldsymbol{e}_1=C\boldsymbol{e}_{i}$。结合式（\ref{eq:cmat}），则式（\ref{eq:cei}）的最末式右端可以改写为如下形式：
+
+\[C^{n}\boldsymbol{e}_1=-a_0\boldsymbol{e}_1-a_1C\boldsymbol{e}_1-\cdots-a_{n-1}C^{n-1}\boldsymbol{e}_1=\big(C^n-p(C)\big)\boldsymbol{e}_1\]
+
+indent因此，可以推知$p(C)\boldsymbol{e}_1=0$。进一步，对于所有$i=1,\cdots,n$，有：
+
+\[p(C)\boldsymbol{e}_i=p(C)C^{i-1}\boldsymbol{e}_1=C^{i-1}\big(p(C)\boldsymbol{e}_1\big)=0\]
+
+\subsubsection*{最小多项式的证明}
+
+可以利用反证法进行证明，其思路是：如果存在次数$m<n$的首一多项式，即：
+
+\[q(t)=t^m+b_{m-1}t^{m-1}+\cdots+b_1t+b_0,\quad m<n\]
+
+indent也能消减$C$，则$q(C)=0$。观察$q(C)\boldsymbol{e}_1$，并利用关系式$C^{i-1}\boldsymbol{e}_1=\boldsymbol{e}_{i}$，可以得到：
+
+\begin{align*}
+\label{eq:qc}
+q(C)\boldsymbol{e}_1 &=
+C^m\boldsymbol{e}_1+b_{m-1}C^{m-1}\boldsymbol{e}_1+\cdots+b_1C\boldsymbol{e}_1+b_0\boldsymbol{e}_1 \\
+&= \boldsymbol{e}_{m+1}+b_{m-1}\boldsymbol{e}_m+\cdots+b_1\boldsymbol{e}_2+b_0\boldsymbol{e}_1=0
+\end{align*}
+
+indent式（\ref{eq:qc}）的含义是$\{\boldsymbol{e}_1,\cdots,\boldsymbol{e}_m,\boldsymbol{e}_{m+1}\}$是一个[label]线性相关[/label]向量集，而对于所有的$\boldsymbol{e}_i\in\mathbb{C}^n$，是不可能线性相关的，所以说$p(t)$便是相伴矩阵$C$的最小多项式。另一方面，$C$的特征多项式是$n$次的消减多项式，所以$p(t)$同时也是$C$的特征多项式。
+
+\subsection*{循环子空间}
+
+上文（见详解不变子空间和限定算子表示矩阵一文）中提出了不变子空间的概念，令$\mathcal{V}$为一[label]向量空间[/label]，$T:\mathcal{V}\to\mathcal{V}$是一个线性变换（[label]线性算子[/label]）。如果$T$将$\mathcal{V}$的一个[label]子空间[/label]$\mathcal{X}\subseteq\mathcal{V}$映射至另一个子空间$T(\mathcal{X})=\{T(\boldsymbol{x})|\boldsymbol{x}\in\mathcal{X}\}$，且满足$T(\mathcal{X})\subseteq\mathcal{X}$，也可以描述为$\forall\boldsymbol{x},T(\boldsymbol{x})\in\mathcal{X}$，则称$\mathcal{X}$是$T$的[label]不变子空间[/label]（invariant subspace），标记为：$T_{/\mathcal{X}}:\mathcal{X}\to\mathcal{X}$。正如上文所提到的，不变子空间可以用来简化线性算子[label]表示矩阵[/label]。
+
+上文还介绍了一种特殊的[label]不变子空间[/label]：[label]循环子空间[/label]。设非零向量$\boldsymbol{x}$，在线性算子$T$下张成如下的循环子空间具有如下形式：
+
+\begin{equation}
+\label{eq:cysub}
+\mathcal{X}=\text{span}\{\boldsymbol{x},T\boldsymbol{x},T^2\boldsymbol{x},\cdots\}
+\end{equation}
+
+indent特别地，如果$\mathcal{X}=\mathcal{V}$，则称$\boldsymbol{x}$为[label]循环向量[/label]（cyclic vector）。设$k$是使向量集$\boldsymbol{\beta}_{\mathcal{X}}=\{\boldsymbol{x},T\boldsymbol{x},\cdots,T^{k-1}\boldsymbol{x}\}$为[label]线性无关[/label]向量集的B最小整数，则存在$a_0,a_1,\cdots,a_{k-1}$，满足：
+
+\begin{equation}
+\label{eq:atk}
+a_0\boldsymbol{x}+a_1T\boldsymbol{x}+\cdots+a_{k-1}T^{k-1}\boldsymbol{x}+T^k\boldsymbol{x}=0
+\end{equation}
+
+indent并且，上式连续左乘$T$得到的$T^m\boldsymbol{x}$（m>k），都能写成$\boldsymbol{x},T\boldsymbol{x},\cdots,T^{k-1}\boldsymbol{x}$的[label]线性组合[/label]，所以$\boldsymbol{\beta}_{\mathcal{X}}$便是循环子空间$\mathcal{X}$的一组[label]基底[/label]。于是有：
+
+\[
+\begin{cases}
+T^i\boldsymbol{x} &= 1 \cdot T^i\boldsymbol{x},\quad i=0,1,\cdots,k-1\\
+T^k\boldsymbol{x} &= -a_0\boldsymbol{x}-a_1T\boldsymbol{x}-\cdots-a_{k-1}T^{k-1}\boldsymbol{x}\\
+\end{cases}
+\]
+
+indent则限定算子$T_{/\mathcal{X}}$关于基底$\boldsymbol{\beta}_{\mathcal{X}}$的表示矩阵具有如下形式：
+
+\[
+\Big(T_{/\mathcal{X}}\Big)_{\boldsymbol{\beta}_{\mathcal{X}}}=
+\begin{bmatrix}
+0&0&\cdots&0&-a_0\\
+1&0&\cdots&0&-a_1\\
+\vdots&\ddots&\ddots&\vdots&\vdots\\
+0&\cdots&1&0&-a_{k-2}\\
+0&0&\cdots&1&-a_{k-1}
+\end{bmatrix}
+\]
+
+indent可以看到，它具有和式（\ref{eq:cmat}）的相伴矩阵一样的形式，只不过阶数变成了$k times k$阶，也就是说，限定算子表示矩阵是多项式$p(t)=t^k+a_{k-1}t^{k-1}+\cdots+a_1t+a_0$的相伴矩阵。
+
+\begin{equation}
+\label{eq:cmatpoly}
+p(t)=t^k+a_{k-1}t^{k-1}+\cdots+a_1t+a_0
+\end{equation}
+
+indent更重要的是，该多项式也是限定算子$T_{/\mathcal{X}}$的[label]特征多项式[/label]。
+
+\subsection*{利用循环子空间证明Cayley-Hamilton定理}
+
+在矩阵的特征多项式和Cayley-Hamilton定理一文中给出了[label]Cayley-Hamilton定理[/label]。它可以表述为：如果$p(t)$为矩阵A的特征多项式，则矩阵$A$替换$t$所得到的[label]矩阵多项式[label]满足$p(A)=0$。这里，利用循环子空间，可以证明Cayley-Hamilton定理。证明的思路是，对于任意向量$\boldsymbol{x}\in\mathcal{V}$，证明式（\ref{eq:cmatpoly}）的矩阵多项式$p(T)$满足$p(T)\boldsymbol{x}=0$，换言之，$p(T)$的[label]零空间[/label]$N(p(T))$充满整个向量空间$\mathcal{V}$。
+
+设$\mathcal{X}$为非零向量$\boldsymbol{x}$在线性算子$T$下张成的循环子空间，且$\text{dim}\mathcal{X}=k$，向量集$\mathfrak{B}_{\mathcal{X}}=\{\boldsymbol{x},T\boldsymbol{x},\cdots,T^{k-1}\boldsymbol{x}\}$为循环子空间$\mathcal{X}$的基底。如果将$\mathfrak{B}_{\mathcal{X}}$的$k$个基底向量扩充为整个向量空间$\mathcal{V}$的基底，则有：
+
+\[
+\mathfrak{B}=\{\boldsymbol{x},T\boldsymbol{x},T^{k-1}\boldsymbol{x},\boldsymbol{y}_1,\boldsymbol{y}_2,\cdots,\boldsymbol{y}_{n-k}\}
+\]
+
+indent则$T$关于$\mathfrak{B}$的表示矩阵具有如下分块上三角形式（推导见详解不变子空间和限定算子表示矩阵一文）：
+
+\[
+\Big(T\Big)_{\mathfrak{B}}=
+\begin{pmatrix}B & C \\ 0 & D\end{pmatrix}
+\]
+
+indent其中，分块$B$为限定算子表示矩阵$\big(T_{/\mathcal{X}}\big)_{\mathfrak{B}_{\mathcal{X]}}}$。根据特征多项式的定义，线性算子$T$的特征多项式即为主对角分块$B$和$D$的特征多项式的乘积：$p(t)|_{\mathcal{V}}=p(t)|_{B}p(t)|_D=p(t)|_D \cdot p(t)|_{B}$，其中：
+
+\begin{align*}
+p(t)|_B&=p(t)|_{T_{/\mathcal{X}}}=t^k+a_{k-1}t^{k-1}+\cdots+a_1t+a_0 \\
+p(T)|_B\cdot\boldsymbol{x}&=T^k\boldsymbol{x}+a_{k-1}T^{k-1}\boldsymbol{x}+\cdots+a_1T\boldsymbol{x}+a_0\boldsymbol{x}=0
+\end{align*}
+
+indent所以，最后可以推得：$p(T)\boldsymbol{x}=p(T)|_D \cdot p(T)|_B\cdot\boldsymbol{x}=p(T)|_D \cdot 0=0$。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+% H2, H3
+\subsection*{dsfsdt}
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+\let\oldnl\nl
+\newcommand{\nonl}{\renewcommand{\nl}{\let\nl\oldnl}}
+%[/preamble]
+%\quicklatex{size=14}
+\TitleOfAlgo{BLAS-3 Gaussian Elimination with Partial Pivoting}
+\begin{algorithm}[H]
+\For{$l\gets 1$ \KwTo $n-1$}{
+$k\gets (l-1)b+1$\;
+factorize $PA^{(l)}=LU$ using BLAS-2\;
+store $L$ and $U$ in $A$\;
+left multiply $A(1:n,k+b:n)$ by $P$\;
+$A(k:k+b-1,k+b:n)\gets T^{-1}A(k:k+b-1,k+b:n)$\;
+\nonl\Indp where $T$ is the unit-lower-trian of $A(k:k+b-1,k:k+b-1)$\;
+\DontPrintSemicolon\Indm$A(k+b:n,k+b:n)\gets A(k+b:n,k+b:n)$\;
+\PrintSemicolon\nonl\Indp$-A(k+b:n,k:k+b-1)A(k:k+b-1,k+b:n)$\;
+}
+\end{algorithm}
+%[/latex]
+
+% H4
+% \subsubsection*{}
+
+\end{document}
