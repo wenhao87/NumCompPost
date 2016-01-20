@@ -1,3 +1,3 @@
 # Numerical-Computation
 
-$\Tex$ documentations for posts on wenhao.ca
+TeX documentations for posts on wenhao.ca
