@@ -1,3 +1,3 @@
-# Numerical-Computation
+# Numerical Computation Posts
 
-TeX documentations for posts on [wenhao.ca](http://www.wenhao.ca/ "Title")
+TeX files for posts on [wenhao.ca](http://www.wenhao.ca/ "Title")
