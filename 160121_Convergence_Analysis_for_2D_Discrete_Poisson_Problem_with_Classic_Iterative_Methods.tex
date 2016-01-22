@@ -1,0 +1,155 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{经典迭代算法在二维离散Poisson方程上的收敛性}
+
+此前，在详解基于矩阵分裂的迭代格式的收敛性一文中给出了基于[label]矩阵分裂[/label]的[label]迭代格式[/label]的通用B收敛性分析，并在详解基于矩阵分裂的经典迭代算法及算法实现一文中详细介绍了各种基于矩阵分裂的经典迭代算法和实现，以及它们在二维离散[label]Poisson问题[/label]上的应用。本文将着重讨论分析这几个算法分别在二维离散Poisson方程上（即针对系数矩阵$\boldsymbol{T}$）的收敛性。
+
+[alert type="info"]矩阵分裂迭代算法收敛的B充要条件是迭代矩阵$\boldsymbol{G}$的[label]谱半径[/albel]$\rho(\boldsymbol{G})<1$。但当谱半径不可求时，若迭代矩阵的某个[label]算子范数[/label]$\|\cdot\|<1$，则算法也收敛（B充分条件）（见详解基于矩阵分裂的迭代格式的收敛性一文）。[/alert]
+
+\subsection*{经典迭代算法在二维离散Poisson方程上的收敛性}
+
+如上所述，算法的收敛性可以通过分析迭代矩阵的谱半径来确定。对于二维离散Poisson方程（见详解一维和二维离散Poisson方程一文），其[label]系数矩阵[/label]$\boldsymbol{T}$和对应的特征值$\lambda$为：
+
+\begin{equation}
+    \label{eq:coeffmat}
+    \begin{aligned}
+        & \begin{aligned}
+            \boldsymbol{T} &= \boldsymbol{I} \otimes \boldsymbol{T}_n + \boldsymbol{T}_n \otimes \boldsymbol{I} = \boldsymbol{A} = \boldsymbol{M} - \boldsymbol{N} \\
+            &= \left(\begin{array}{cccc|cccc|cccc}
+            4 & -1 & ~ & ~ & -1 & ~ & ~ & ~ & ~ & ~ & ~ & ~ \\
+            -1 & \ddots & \ddots & ~ & ~ & \ddots & ~ & ~ & ~ & ~ & ~ & ~ \\
+            ~ & \ddots & \ddots & -1 & ~ & ~ & \ddots & ~ & ~ & ~ & ~ & ~ \\
+            ~ & ~ & -1 & 4 & ~ & ~ & ~ & -1 & ~ & ~ & ~ & ~ \\ \cline{1-12}
+            -1 & ~ & ~ & ~ & 4 & -1 & ~ & ~ & -1 & ~ & ~ & ~ \\
+            ~ & \ddots & ~ & ~ & -1 & \ddots & \ddots & ~ & ~ & \ddots & ~ & ~ \\
+            ~ & ~ & \ddots & ~ & ~ & \ddots & \ddots & -1 & ~ & ~ & \ddots & ~ \\
+            ~ & ~ & ~ & -1 & ~ & ~ & -1 & 4 & ~ & ~ & ~ & -1 \\ \cline{1-12}
+            ~ & ~ & ~ & ~ & -1 & ~ & ~ & ~ & 4 & -1 & ~ & ~ \\
+            ~ & ~ & ~ & ~ & ~ & \ddots & ~ & ~ & -1 & \ddots & \ddots & ~ \\
+            ~ & ~ & ~ & ~ & ~ & ~ & \ddots & ~ & ~ & \ddots & \ddots & -1 \\
+            ~ & ~ & ~ & ~ & ~ & ~ & ~ & -1 & ~ & ~ & -1 & 4 \\
+            \end{array}\right)
+        \end{aligned} \\
+        & \begin{aligned}
+            \lambda = \lambda_i + \lambda_j &= (2-2\cos\dfrac{i\pi}{n+1}) + (2-2\cos\dfrac{j\pi}{n+1}) \\
+            & = 4 - 2\left(\cos\dfrac{i\pi}{n+1} + \cos\dfrac{j\pi}{n+1}\right)
+        \end{aligned} \\
+    \end{aligned}
+\end{equation}
+
+\subsubsection*{Jacobi迭代算法}
+
+对于[label]Jacobi迭代算法[/label]，系数矩阵$\boldsymbol{T}$对应的迭代矩阵为：
+
+\[
+    \boldsymbol{G}_{\mathrm{J}} = \boldsymbol{D}^{-1}(\boldsymbol{L} + \boldsymbol{U}) = (4\boldsymbol{I})^{-1}(4\boldsymbol{I}-\boldsymbol{T}) = \boldsymbol{I}-\boldsymbol{T}/4
+\]
+
+因此，$\boldsymbol{G}_{\mathrm{J}}$所对应的特征值及其谱半径可以表示为：
+
+\begin{equation}
+    \label{eq:rhoj}
+    \begin{aligned}
+        \lambda_{\boldsymbol{G}_{\mathrm{J}}} &= 1-(\lambda_{i}+\lambda_{j})/4 = \dfrac{1}{2} \left( \cos\dfrac{i\pi}{n+1} + \cos\dfrac{j\pi}{n+1} \right) \\
+        \rho(\boldsymbol{G}_{\mathrm{J}}) &= \dfrac{1}{2} \max \left\{ \left| \cos\dfrac{i\pi}{n+1} + \cos\dfrac{j\pi}{n+1} \right| \right\} = \cos\dfrac{\pi}{n+1} < 1
+    \end{aligned}
+\end{equation}
+
+[alert type="success"]二维离散Poisson方程的Jacobi迭代算法B总是收敛的（$\rho(\boldsymbol{G}_{\mathrm{J}})<1$）。[/alert]
+
+[alert type="error"]需要B注意的是：当$n$越来越大时，$\kappa(\boldsymbol{T})\to\infty$，即$\boldsymbol{T}$越来越病态（见详解一维和二维离散Poisson方程一文），且此时$\rho(\boldsymbol{G}_{\mathrm{J}})\to1$，即Jacobi迭代算法收敛速度B越来越慢。[/alert]
+
+\subsubsection*{Gauss-Seidel和SOR迭代算法}
+
+对于使用[label]红黑排序[/label]求解二维离散Poisson方程(见详解基于矩阵分裂的经典迭代算法及算法实现一文)的[label]Gauss-Seidle迭代算法[/label]和[label]SOR迭代算法[/label]，其系数矩阵$\boldsymbol{T}$分别对应迭代矩阵$\boldsymbol{G}_{\mathrm{GS}}$和$\boldsymbol{G}_{\mathrm{SOR}}$，且它们各自的谱半径满足：
+
+\begin{equation}
+    \label{eq:rhogssor}
+    \begin{aligned}
+        \rho(\boldsymbol{G}_{\mathrm{GS}}) &= \rho(\boldsymbol{G}_{\mathrm{J}})^2 = \cos^2\dfrac{\pi}{n+1} < 1 \\
+        \rho(\boldsymbol{G}_{\mathrm{SOR}}) &= \dfrac{\cos^2\dfrac{\pi}{n+1}}{\left(1+\sin\dfrac{\pi}{n+1}\right)^2} < 1 \;,\quad \omega = \dfrac{2}{1+\sin\dfrac{\pi}{n+1}} \\
+    \end{aligned}
+\end{equation}
+
+noindent其中，$\omega$是SOR迭代算法中的B最优参数，即此时$\rho(\boldsymbol{G}_{\mathrm{SOR}})$最小。
+
+\subsubsection*{收敛速度比较}
+
+根据泰勒级数展开式可知：
+
+\[
+    \cos x = \sum_{k=0}^\infty \dfrac{(-1)^{k} x^{2k}}{(2k)!} = 1 - \dfrac{x^2}{2!} + \dfrac{x^4}{4!} - \dfrac{x^6}{6!} \cdots
+\]
+
+noindent因此，当$n$很大时，有：
+
+\begin{eqnarray*}
+    & \begin{aligned}
+        \rho(\boldsymbol{G}_{\mathrm{J}}) &= \cos\dfrac{\pi}{n+1} \approx 1 - \dfrac{\pi^2}{2(n+1)^2} = 1 - \mathcal{O}(\dfrac{1}{n^2}) \\
+        \rho(\boldsymbol{G}_{\mathrm{SOR}}) &= \dfrac{\cos^2 \dfrac{\pi}{n+1}}{\left(1+\sin\dfrac{\pi}{n+1}\right)^2} \approx 1 - \dfrac{\pi}{n+1} = 1 - \mathcal{O}\left(\dfrac{1}{n}\right)
+    \end{aligned} \\
+    & \left(1-\dfrac{1}{n}\right)^k \approx 1 - \dfrac{k}{n} = 1- \dfrac{kn}{n^2} \approx \left(1-\dfrac{1}{n^2}\right)^{kn}
+\end{eqnarray*}
+
+由此可知，SOR迭代算法迭代$k$步后误差的B减小量与Jacobi迭代算法迭代$kn$步后误差的减小量相当。换言之，对于二维离散Poisson方程，当SOR迭代算法取到最优参数时，其收敛速度是Jacobi算法的$n$倍。
+
+[alert type="error"]注意：上述结论对一般线性方程组并B不一定成立。[/alert]
+
+另一方面，由于$\rho(\boldsymbol{G}_{\mathrm{GS}})=\rho(\boldsymbol{G}_{\mathrm{J}})^2$，所以对于二维离散Poisson方程，Gauss-Seidel迭代算法的收敛速度大约是Jacobi迭代算法的$2$倍。
+
+[alert type="error"]注意：当$n$很大时，这三种迭代算法（Jacobi、Gauss-Seidel、SOR）的收敛速度都很慢。 [/alert]
+
+\subsubsection*{经典迭代算法在其他特殊系数矩阵上的收敛性}
+
+最后给出经典迭代算法在一些特殊系数矩阵上的收敛性结论：
+
+- 严格行/列对角占优矩阵
+
+[alert type="info"]设$\boldsymbol{A}\in\mathbb{R}^{n \times n}$，若$\boldsymbol{A}$[label]严格对角占优[/label]，则Jacobi迭代算法和Gauss-Seidel迭代算法B都收敛，且有：$\|\boldsymbol{G}_{\mathrm{GS}}\|_\infty\leq\|\boldsymbol{G}_{\mathrm{J}}\|_\infty<1$。[/alert]
+
+- 弱对角占优且不可约
+
+[alert type="info"]设$\boldsymbol{A}\in\mathbb{R}^{n \times n}$是[label]弱对角占优[/label]且[label]不可约[/label]，则Jacobi迭代算法和Gauss-Seidel算法B都收敛，且有：$\rho(\boldsymbol{G}_{\mathrm{GS}})<\rho(\boldsymbol{G}_{\mathrm{J}})<1$。[/alert]
+
+由式（\ref{eq:coeffmat}）可知，二维离散Poisson方程是弱对角占优不可约矩阵，因此其对Jacobi和Gauss-Seidel迭代算法都收敛。但对一般矩阵，上述结论则不一定成立。
+
+- 对称正定矩阵
+
+[alert type="info"]设$\boldsymbol{A}\in\mathbb{R}^{n \times n}$[label]对称正定[/label]，则有：
+- 若$2\boldsymbol{D}-\boldsymbol{A}$正定，则Jacobi迭代算法收敛；
+- 若$0 < \omega < 2$，则SOR和SSOR迭代算法收敛；
+- Gauss-Seidel算法收敛；[alert]
+
+由式（\ref{eq:coeffmat}）可知，对于二维离散Poisson方程，其系数矩阵对称正定，因此，当$0 < \omega < 2$时，其对SOR迭代算法收敛。
+
+[alert type="info"]设$\boldsymbol{A}\in\mathbb{R}^{n \times n}$对称，则有：
+- 若$2\boldsymbol{D}-\boldsymbol{A}$正定且Jacobi迭代算法收敛，则$\boldsymbol{A}$正定；
+- 若$\boldsymbol{D}$正定，且存在$\omega\in(0,2)$使得SOR（或SSOR）收敛，则$\boldsymbol{A}$正定；
+- 若$\boldsymbol{D}$正定，且Gauss-Seidel迭代算法收敛，则$\boldsymbol{A}$正定；[/alert]
+
+%[/aside_content]
+
+\end{document}
