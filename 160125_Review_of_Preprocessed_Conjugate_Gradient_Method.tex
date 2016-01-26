@@ -1,0 +1,162 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{预处理的共轭梯度法}
+
+从直接Lanczos迭代法推导共轭梯度（CG）方法一文中，详细介绍了[label]共轭梯度[/label]（CG）方法，它主要用于求解稀疏[label]对称正定[/label]矩阵方程组。此外，在详解基于矩阵分裂的经典迭代算法及算法实现一文中，详细介绍了几种经典迭代算法。本文将着重讨论在使用共轭梯度（CG）方法之前，先使用诸如（SSOR 迭代算法）的经典迭代格式做预处理，通常可以加快收敛速度。
+
+\subsection*{共轭梯度（CG）方法}
+
+考虑线性方程组$\boldsymbol{Ax}=\boldsymbol{b}$，其中$\boldsymbol{A}\in\mathbb{R}^{n \times n}$为对称正定矩阵，$\boldsymbol{b}\in\mathbb{R}^{n}$。该问题的解是无约束[label]极小问题[/label]$\min_{\boldsymbol{x}\in\mathbb{R}^n}f(\boldsymbol{x})$的解，其中$f(\boldsymbol{x})=\frac{1}{2}\boldsymbol{x}^T\boldsymbol{Ax}-\boldsymbol{b}^T\boldsymbol{x}$，因此为题转换为了对该极小问题的[label]极小解[/label]$\boldsymbol{x}^{\ast}$的求解。
+
+极小问题最优解的迭代求解过程为：设$\boldsymbol{x}_{k}\in\mathbb{R}^{n}$是$\boldsymbol{x}^{\ast}$的一个近似，从$\boldsymbol{x}_k$出发沿着[label]搜索方向[/label]$\boldsymbol{d}_k$寻找目标函数值更小的点$\boldsymbol{x}_{k+1}$，从而$\boldsymbol{x}_{k+1}$更接近$f$的极小点$\boldsymbol{x}^{\ast}$。共轭梯度（CG）方法主要用到以下几个关系式（详细推导过程以及算法实现可以参见从直接Lanczos迭代法推导共轭梯度（CG）方法一文）：
+
+\begin{equation}
+    \label{eq:cgrelations}
+    \alpha_k = \dfrac{\langle \boldsymbol{r}_k, \boldsymbol{r}_k \rangle}{\langle \boldsymbol{Ad}_k, \boldsymbol{d}_k \rangle}
+    \; \Rightarrow \; \begin{aligned}
+        \boldsymbol{x}_{k+1} &= \boldsymbol{x}_{k}+\alpha_k\boldsymbol{d}_k \\
+        \boldsymbol{r}_{k+1} &= \boldsymbol{r}_{k}-\alpha_k\boldsymbol{Ad}_k
+    \end{aligned} \; \Rightarrow \;
+    \beta_k = \dfrac{\langle \boldsymbol{r}_{k+1},\boldsymbol{r}_{k+1} \rangle}{\langle \boldsymbol{r}_k,\boldsymbol{r}_k \rangle}
+    \; \Rightarrow \;
+    \boldsymbol{d}_{k+1} = \boldsymbol{r}_{k+1} + \beta_k\boldsymbol{d}_k
+\end{equation}
+
+[alert type="success"]B共轭梯度迭代方法：给定$\boldsymbol{x}_0$，计算残差$\boldsymbol{r}_0$，也即搜索方向$\boldsymbol{d}_0$。此后，根据式（\ref{eq:cgrelations}）计算$\boldsymbol{x}_1$、残差$\boldsymbol{r}_1$、和搜索方向$\boldsymbol{d}_1$，如此不断循环，直到达到精度为止。[/alert]
+
+设$\boldsymbol{r}_i\neq0$，$0 \leq i \leq n-1$，那么由于$n$维向量$\boldsymbol{r}_n$和前面$n$个残差向量都正交，则$\boldsymbol{r}_n$B必为零向量。所以说，共轭梯度（CG）方法最多经过$n$次迭代后，必定能得到精确解$\boldsymbol{x}^{\ast}$。当阶数较高时，迭代次数往往比阶数少很多。
+
+另外，关于共轭梯度（CG）方法的收敛性估计，具体可以表示为：
+
+\[
+    \|\boldsymbol{x}_k-\boldsymbol{x}^{\ast}\|_{\boldsymbol{A}} \leq
+    2\left( \dfrac{\sqrt{K}-1}{\sqrt{K}+1} \right)^k \|\boldsymbol{x}_0-\boldsymbol{x}^{\ast}\|_{\boldsymbol{A}} \quad
+    \left\{ \; \begin{aligned}
+        \|\boldsymbol{x}\|_{\boldsymbol{A}} &= \sqrt{\boldsymbol{x}^T\boldsymbol{Ax}} \\
+        K &= \kappa(\boldsymbol{A})_2
+    \end{aligned} \right.
+\]
+
+\subsection*{预处理的共轭梯度（CG）方法}
+
+\subsubsection*{预处理的共轭梯度（CG）方法的推导}
+
+引入[label]]预处理矩阵[/label]$\boldsymbol{M}\in\mathbb{R}^{n \times n}$来对方程组$\boldsymbol{Ax}=\boldsymbol{b}$做预处理，其中$\boldsymbol{M}$也是对称正定矩阵，且预处理后方程的系数矩阵还是对称正定矩阵。若$\boldsymbol{M}$有分解：$\boldsymbol{M}=\boldsymbol{SS}^T$，则线性方程组$\boldsymbol{Ax}=\boldsymbol{b}$经过预处理后变为：
+
+\begin{equation}
+    \label{eq:prels}
+    \underbrace{\boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T}_{\tilde{\boldsymbol{A}}}\boldsymbol{u} = \underbrace{\boldsymbol{S}^{-1}\boldsymbol{b}}_{\tilde{\boldsymbol{b}}} \;, \quad
+    \boldsymbol{x} = (\boldsymbol{S}^{-1})^T\boldsymbol{u}
+\end{equation}
+
+显然，式（\ref{eq:prels}）中的系数矩阵$\boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T$仍为对称正定矩阵。预处理的目标是通过$\boldsymbol{M}$和$\boldsymbol{S}$的选取，使得$\boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T$比$\boldsymbol{A}$具有更好的[label]条件数[/label]。对式（\ref{eq:prels}）使用式（\ref{eq:cgrelations}）中给出的共轭梯度（CG）方法的迭代计算过程，则其迭代过程可以描述为：
+
+\begin{equation}
+    \label{eq:cgprerelations}
+    \begin{aligned}
+        \boldsymbol{u}_0 &\;\Rightarrow \;
+        \left\{ \; \begin{aligned}
+            \tilde{\boldsymbol{r}}_0 &= \tilde{\boldsymbol{b}}-\tilde{\boldsymbol{A}}\boldsymbol{u}_0 =
+            \boldsymbol{S}^{-1}\boldsymbol{b} - \boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T\boldsymbol{u}_0 \\
+            \tilde{\boldsymbol{d}}_0 &= \tilde{\boldsymbol{r}}_0
+        \end{aligned}\right. \;\Rightarrow\;
+        \tilde{\alpha}_k = \dfrac{\Big\langle \tilde{\boldsymbol{r}}_k, \tilde{\boldsymbol{r}}_k \Big\rangle}{\Big\langle \underbrace{\left(\boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T\right)}_{\tilde{\boldsymbol{A}}}\tilde{\boldsymbol{d}}_k , \tilde{\boldsymbol{d}}_k \Big\rangle} \\
+        &\;\Rightarrow \;
+        \left\{ \; \begin{aligned}
+            \boldsymbol{u}_{k+1} &= \boldsymbol{u}_k + \tilde{\alpha}_k\tilde{\boldsymbol{d}}_k \\
+            \tilde{\boldsymbol{r}}_{k+1} &= \tilde{\boldsymbol{r}}_k - \tilde{\alpha}_k \overbrace{\left( \boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T \right)}^{\tilde{\boldsymbol{A}}} \tilde{\boldsymbol{d}}_k
+        \end{aligned}\right. \;\Rightarrow\;
+        \tilde{\beta}_k = \dfrac{\Big\langle \tilde{\boldsymbol{r}}_{k+1}, \tilde{\boldsymbol{r}}_{k+1} \Big\rangle}{\Big\langle \tilde{\boldsymbol{r}}_{k}, \tilde{\boldsymbol{r}}_{k} \Big\rangle} \;\Rightarrow\; \tilde{\boldsymbol{d}}_{k+1} = \tilde{\boldsymbol{r}}_{k+1} + \tilde{\beta}_k\tilde{\boldsymbol{d}}_k \\
+    \end{aligned}
+\end{equation}
+
+如果令$\boldsymbol{x}_k=(\boldsymbol{S}^{-1})^T\boldsymbol{u}_k$，$\boldsymbol{d}_k=(\boldsymbol{S}^{-1})^T\tilde{\boldsymbol{d}}_k$的话，则有：$\boldsymbol{u}_k=\boldsymbol{S}^T\boldsymbol{x}_k$，$\tilde{\boldsymbol{d}}_k=\boldsymbol{S}^T\boldsymbol{d}_k$，将它们代入式（\ref{eq:cgprerelations}），便可以得到：
+
+\begin{equation}
+    \label{eq:cgpredev}
+    \begin{aligned}
+        \tilde{\boldsymbol{r}}_k &= \tilde{\boldsymbol{b}}_k - \tilde{\boldsymbol{A}}\boldsymbol{u}_k = \boldsymbol{S}^{-1}\boldsymbol{b}-\Big(\boldsymbol{S}^{-1}\boldsymbol{A}\overbrace{(\boldsymbol{S}^{-1})^T\Big)\boldsymbol{u}_k}^{\boldsymbol{x}_k} = \boldsymbol{S}^{-1}(\boldsymbol{b}-\boldsymbol{Ax}_k) = \boldsymbol{S}^{-1}\boldsymbol{r}_k \\
+        \alpha_k &= \dfrac{\Big\langle \boldsymbol{S}^{-1}\boldsymbol{r}_k, \boldsymbol{S}^{-1}\boldsymbol{r}_k \Big\rangle}{\Big\langle \boldsymbol{S}^{-1}\boldsymbol{A}\boldsymbol{d}_k, \boldsymbol{S}^T\boldsymbol{d}_k \Big\rangle} = \dfrac{\Big\langle \boldsymbol{r}_k, (\boldsymbol{SS}^{T})^{-1}\boldsymbol{r}_k \Big\rangle}{\Big\langle \boldsymbol{Ad}_k, (\boldsymbol{S}^{-1}\boldsymbol{S})^T\boldsymbol{d}_k \Big\rangle} = \dfrac{\Big\langle \boldsymbol{r}_k, \boldsymbol{M}^{-1}\boldsymbol{r}_k \Big\rangle}{\Big\langle \boldsymbol{Ad}_k, \boldsymbol{d}_k \Big\rangle} \\
+        \boldsymbol{u}_{k+1} &= \boldsymbol{u}_k + \tilde{\alpha}_k\tilde{\boldsymbol{d}}_k \;\Rightarrow\;
+        \boldsymbol{S}^T\boldsymbol{x}_{k+1} = \boldsymbol{S}^T\boldsymbol{x}_k + \alpha_k\boldsymbol{S}^T\boldsymbol{d}_k \;\Rightarrow\; \boldsymbol{x}_{k+1} = \boldsymbol{x}_k + \alpha_k\boldsymbol{d}_k \\
+        \tilde{\boldsymbol{r}}_{k+1} &= \tilde{\boldsymbol{r}}_k-\tilde{\alpha}_k\left( \boldsymbol{S}^{-1}\boldsymbol{A}(\boldsymbol{S}^{-1})^T\tilde{\boldsymbol{d}}_k \right)
+        \begin{aligned}
+            & \;\Rightarrow\; \boldsymbol{S}^{1-}\boldsymbol{r}_{k+1} = \boldsymbol{S}^{-1}\boldsymbol{r}_k - \alpha_k\boldsymbol{S}^{-1}\boldsymbol{A}\boldsymbol{d}_k \\
+            & \;\Rightarrow\; \boldsymbol{r}_{k+1} = \boldsymbol{r}_k - \alpha_k\boldsymbol{Ad}_k
+        \end{aligned} \\
+        \beta_{k} &= \dfrac{\Big\langle \boldsymbol{S}^{-1}\boldsymbol{r}_{k+1}, \boldsymbol{S}^{-1}\boldsymbol{r}_{k+1} \Big\rangle}{\Big\langle \boldsymbol{S}^{-1}\boldsymbol{r}_k, \boldsymbol{S}^{-1}\boldsymbol{r}_k \Big\rangle} = \dfrac{\Big\langle \boldsymbol{r}_{k+1}, \boldsymbol{M}^{-1}\boldsymbol{r}_{k+1} \Big\rangle}{\Big\langle \boldsymbol{r}_k,\boldsymbol{M}^{-1}\boldsymbol{r}_k \Big\rangle} \\
+        \tilde{\boldsymbol{d}}_{k+1} &= \tilde{\boldsymbol{r}}_{k+1} + \tilde{\beta}_k\tilde{\boldsymbol{d}}_k \;\Rightarrow\; \boldsymbol{S}^T\boldsymbol{d}_{k+1} = \boldsymbol{S}^{-1}\boldsymbol{r}_{k+1} + \beta_{k}\boldsymbol{S}^T\boldsymbol{d}_k \;\Rightarrow\; \boldsymbol{d}_{k+1} = \boldsymbol{M}^{-1}\boldsymbol{r}_{k+1} + \beta_k\boldsymbol{d}_k
+    \end{aligned}
+\end{equation}
+
+\subsubsection*{预处理的共轭梯度（CG）方法的算法实现}
+
+如果令$\boldsymbol{z}_{k}=\boldsymbol{M}^{-1}\boldsymbol{r}_k$的话，则式（\ref{eq:cgpredev}）中的$\alpha_k$、$\beta_k$、和$\boldsymbol{d}_{k+1}$可以得到进一步简化；而在初始化方面，对于给定的$\boldsymbol{x}_0\in\mathbb{R}^n$，有：$\boldsymbol{r}_0=\boldsymbol{b}-\boldsymbol{Ax}_0$，$\boldsymbol{z}_0=\boldsymbol{M}^{-1}\boldsymbol{r}_0$，而B初始搜索方向为$\boldsymbol{d}_0=\boldsymbol{z}_0$。由此便得到了预处理的共轭梯度（CG）方法的算法。对于给定线性方程组$\boldsymbol{Ax}=\boldsymbol{b}$，其算法具体实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Preprocessed Conjugate Gradient Method}
+\begin{algorithm}[H]
+    choose an initial guess $\boldsymbol{x}^{(0)}\in\mathbb{R}^{n}$ \;
+    $\boldsymbol{r}_0 \gets \boldsymbol{b}-A\boldsymbol{x}_0 \;,\; \boldsymbol{z}_0 \gets \boldsymbol{M}^{-1}\boldsymbol{r}_0 \;,\; \boldsymbol{d}_0 \gets \boldsymbol{z}_0$ \;
+    \For{$k \gets 0$ \KwTo $\cdots$}{
+        $\alpha_k \gets \big\langle \boldsymbol{r}_k, \boldsymbol{z}_k \big\rangle \Big/ \big\langle \boldsymbol{Ad}_k, \boldsymbol{d}_k \big\rangle$ \;
+        $\boldsymbol{x}_{k+1} \gets \boldsymbol{x}_k + \alpha_k\boldsymbol{d}_k$ \;
+        $\boldsymbol{r}_{k+1} \gets \boldsymbol{r}_k - \alpha_k\boldsymbol{Ad}_k$ \;
+        $\boldsymbol{z}_{k+1} \gets \boldsymbol{M}^{-1}\boldsymbol{r}_{k+1}$ \;
+        $\beta_k \gets \big\langle \boldsymbol{r}_{k+1}, \boldsymbol{z}_{k+1} \big\rangle \Big/ \big\langle \boldsymbol{r}_k, \boldsymbol{z}_k \big\rangle$ \;
+        $\boldsymbol{d}_{k+1} \gets \boldsymbol{z}_{k+1} + \beta_k\boldsymbol{d}_k$ \;
+    }
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{预处理的共轭梯度（CG）方法的算法分析}
+
+观察上述预处理的共轭梯度（CG）方法的算法实现，虽然预处理矩阵$\boldsymbol{M}$具有$\boldsymbol{M}=\boldsymbol{SS}^T$的分解形式，但算法本身仅和$\boldsymbol{M}$有关，而和$\boldsymbol{S}$无关。如果$\boldsymbol{M}$为[label]单位矩阵[/label]，上述算法就是无预处理的共轭梯度（CG）方法（见从直接Lanczos迭代法推导共轭梯度（CG）方法一文）。
+
+此外，观察算法的第$7$行，它和无预处理的共轭梯度（CG）方法相比，仅仅多了每一步求解$\boldsymbol{z}_{k+1}$的计算量，且算法每一步的B主要工作量集中在$\boldsymbol{Ad}_k$和$\boldsymbol{M}^{-1}\boldsymbol{r}_{k+1}$这两次的[label]矩阵向量乘[/label]。
+
+最后需要考虑的是预处理矩阵$\boldsymbol{M}=\boldsymbol{SS}^T$的选取，其中一种选取方法是对$\boldsymbol{A}$进行不完全$\boldsymbol{LU}$分解（见稀疏模式下的不完全三角分解法一文），并且由于$\boldsymbol{A}$的对称性，则$\boldsymbol{A}$的不完全$\boldsymbol{LU}$分解可以表示为：$\boldsymbol{A}=\boldsymbol{LL}^T+\boldsymbol{R}$，$\boldsymbol{M}=\boldsymbol{LL}^T$。
+
+另一种方法则是对$\boldsymbol{A}$进行[label]矩阵分裂[/label]（见详解基于矩阵分裂的经典迭代算法及算法实现一文）。对于基于矩阵分裂的不同经典迭代格式$\boldsymbol{A}=\boldsymbol{M}-\boldsymbol{N}$，需要考察$\boldsymbol{M}$是否满足对称正定性。
+
+- [label]Jacobi 迭代[label]：$\boldsymbol{M}=\boldsymbol{D}$，满足对称正定性，对应的预处理方法称为 [label]Jacobi 预处理[/label]；
+
+[alert type="error"]B注意：如果对角矩阵$\boldsymbol{M}$的对角元都相同（如二维离散Poisson方程，见详解一维和二维离散Poisson方程一文），即：$\boldsymbol{M}=n\boldsymbol{I}$，此时做 Jacobi 预处理是没有必要的。[/alert]
+
+- [label]Gauss-Seidel 迭代[/label]：$\boldsymbol{M}=\boldsymbol{D}-\boldsymbol{L}$，不满足对称正定性；
+
+- [label]SOR 迭代[/label]：$\boldsymbol{M}=\frac{1}{\omega}\boldsymbol{D}-\boldsymbol{L}$，不满足对称正定性；
+
+- [label]SSOR 迭代[/label]：$\boldsymbol{M} = \frac{1}{\omega(2-\omega)} (\boldsymbol{D}-\omega\boldsymbol{L})\boldsymbol{D}^{-1}(\boldsymbol{D}-\omega\boldsymbol{U})$；满足对称正定性，对应的与处理方法称为 [label]SSOR 预处理[/label]；
+
+[alert type="success"]综上所述，对于对称正定线性方程组，可以使用诸如不完全$\boldsymbol{LU}$分解或 SSOR 迭代算法对共轭梯度（CG）方法进行预处理，来加快迭代的收敛速度。[/alert]
+
+%[/aside_content]
+
+\end{document}
