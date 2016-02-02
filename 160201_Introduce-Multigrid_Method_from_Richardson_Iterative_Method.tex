@@ -1,0 +1,216 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{由Richardson 迭代引入多重网格方法}
+
+在详解基于矩阵分裂的经典迭代算法及算法实现一文中，详细介绍了四种主要的基于矩阵分裂的经典迭代法：[label]Jacobi 迭代[/label]、[label]Gauss-Seidel 迭代[/label]、[label]SOR 迭代[/label]、以及 [label]SSOR 迭代[/label]。本文将详细介绍分析另一种经典迭代算法：[label]Richardson 迭代[/label]。事实上，通过深入剖析形式较为简单的迭代模式，如：Richardson 迭代和 Jacobi 迭代算法，更有助于理解[label]多重网格[/label]方法。
+
+\subsection*{Richardon 迭代算法}
+
+\subsubsection*{Richardson 算法迭代格式}
+
+[label]Richardson 迭代[/label]算法是一类形式较为简单的迭代算法，其迭代格式为：
+
+\begin{eqnarray}
+  \label{eq:richarditer}
+  & \boldsymbol{x}_{k+1} = \boldsymbol{x}_k + \omega(\boldsymbol{b} - \boldsymbol{Ax}_k) = (\boldsymbol{I}-\omega\boldsymbol{A})\boldsymbol{x}_k + \omega\boldsymbol{b} \;,\quad k=0,1,2,\ldots \\
+  & \boldsymbol{G}_{\mathrm{R}} = \boldsymbol{I} - \omega\boldsymbol{A}
+\end{eqnarray}
+
+noindent其中，$\boldsymbol{G}_{\mathrm{R}}$为 Richardson 迭代算法对应的迭代矩阵。从矩阵分裂$\boldsymbol{A}=\boldsymbol{M}-\boldsymbol{N}$角度来看，Richardson 迭代算法对应的矩阵分裂为：
+
+\begin{equation*}
+  \boldsymbol{M} = \dfrac{1}{\omega}\boldsymbol{I} \quad,\quad
+  \boldsymbol{N} = \dfrac{1}{\omega}\boldsymbol{I} - \boldsymbol{A}
+\end{equation*}
+
+\subsubsection*{Richardson 迭代收敛性分析}
+
+考察迭代矩阵$\boldsymbol{G}_{\mathrm{R}}=\boldsymbol{I}-\omega\boldsymbol{A}$，显然其[label]收敛因子[/label]为$\rho(\boldsymbol{I}-\omega\boldsymbol{A})$。假定矩阵$\boldsymbol{A}$的特征值为$\lambda_i,i=1,\ldots,n$，则有$\lambda_{\min}\leq\lambda_i\leq\lambda_{\max}$，那么迭代矩阵$\boldsymbol{G}_{\mathrm{R}}$的特征值$\mu_i$满足：
+
+\begin{equation}
+  \label{eq:greigval}
+  1-\omega\lambda_{\max} \leq \mu_i \leq 1-\omega\lambda_{\min}
+\end{equation}
+
+观察式（\ref{eq:greigval}），如果$\lambda_{\min}<0$或者$\lambda_{\max}>0$，则至少存在一个$\mu_i>1$，此时对于任意的$\omega$，都有$\rho(\boldsymbol{G}_{\mathrm{R}})>1$，则对于给定的初始向量$\boldsymbol{x}_0$，该方法始终发散。如果假定所有特征值都为正，即：$\lambda_{\min}>0$，那么为了保证迭代算法的收敛性，必须同时满足以下两个条件：
+
+\begin{equation}
+  \label{eq:omegarange}
+  \left.\begin{array}{ccc}
+    1 - \omega\lambda_{\min} & < & 1 \\
+    1 - \omega\lambda_{\max} & > & -1 \\
+  \end{array}\right\} \;\Rightarrow\; 0 < \omega < \dfrac{2}{\lambda_{\max}}
+\end{equation}
+
+\subsubsection*{Richardson 迭代最优参数}
+
+式（\ref{eq:omegarange}）给出了 Richardson 迭代方法收敛是参数$\omega$的范围。进一步，希望可以确定$\omega$的最优解$\omega_{opt}$，即：$\omega_{opt}$是使$\rho(\boldsymbol{G}_{\mathrm{R}})$的值达到最小时的值。根据式（\ref{eq:greigval}）可知，迭代矩阵$\boldsymbol{G}_{\mathrm{R}}$的[label]谱半径[/label]为：
+
+\begin{equation}
+  \label{eq:omegafun}
+  \rho(\boldsymbol{G}_{\mathrm{R}}) = \max\Big\{
+    |1-\omega\lambda_{\min}|,\;|1-\omega\lambda_{\max}|
+  \Big\}
+\end{equation}
+
+式（\ref{eq:omegafun}）可以看作是关于$\omega$的函数，其函数图像如下所示。从图上可以看出，当处于正斜率方向上的曲线$|1-\omega\lambda_{\max}|$和处于﹣斜率方向的曲线$|1-\omega\lambda_{\min}|$相交时，它们的交点便是$\omega$达到最优时的值，即：
+
+\begin{equation}
+  \label{eq:omegaopt}
+  -1 + \omega\lambda_{\max} = 1 - \omega\lambda_{\min} \;\Rightarrow\;
+  \omega_{opt} = \dfrac{2}{\lambda_{\min}+\lambda_{\max}}
+\end{equation}
+
+最终，将式（\ref{eq:omegaopt}）代入式（\ref{eq:omegafun}）后，便可以得到迭代矩阵$\boldsymbol{G}_{\mathrm{R}}$对应的最优谱半径$\rho_{opt}$：
+
+\begin{equation}
+  \label{eq:rhoopt}
+  \rho_{opt} = \dfrac{\lambda_{\max}-\lambda_{\min}}{\lambda_{\ max}+\lambda_{\min}}
+\end{equation}
+
+[alert type="info"]事实上，在实际应用中，式（\ref{eq:omegaopt}）给出的最优参数$\omega_{opt}$是很难求得的。取而代之的是，利用上界$\rho(\boldsymbol{A})\leq\gamma$，其中$\gamma$可以通过 Gershgorin 定理求解，并取$\omega=1/\gamma$。由此可以确保迭代是收敛的，因为其满足式（\ref{eq:omegarange}）的收敛条件，即：\[0<\omega=\dfrac{1}{\gamma}\leq\dfrac{1}{\rho(\boldsymbol{A})}<\dfrac{2}{\rho(\boldsymbol{A})}\][alert]
+
+[alert type="info"]如果每次迭代时所取的参数$\omega$不同，则成为[label]非固定 Richardson 迭代算法[/label]，即：$\boldsymbol{x}_{k+1}=\boldsymbol{x}_k+\omega_k(\boldsymbol{b}-\boldsymbol{Ax}_k)\;,\;k=0,1,2,\ldots$。[/alert]
+
+\subsection*{多重网格方法简介}
+
+以一维离散Poisson方程为模型（见详解一维和二维离散Poisson方程一文），其特征值$\lambda_k$和对应的特征向量$\boldsymbol{w}_k$为（$k=1,2,\ldots,n$）：
+
+\begin{equation}
+  \label{eq:eigvalvec}
+  \begin{aligned}
+    \lambda_k & = 2 - 2\cos\dfrac{k\pi}{n+1} = 4\sin^2\dfrac{k\pi}{2(n+1)} \\
+    \boldsymbol{w}_k & =
+      \begin{pmatrix}
+        \sin\dfrac{k\pi}{n+1}, \sin\dfrac{2k\pi}{n+1}, \cdots, \sin\dfrac{nk\pi}{n+1}
+      \end{pmatrix}^T \\
+  \end{aligned}
+  \;\underset{\theta_k=\frac{k\pi}{n+1}}{\Longrightarrow}
+  \begin{aligned}
+    \lambda_k & = 4\sin^2\dfrac{\theta_k}{2} \\
+    \boldsymbol{w}_k & =
+      \begin{pmatrix}
+        \sin\theta_k, \sin(2\theta_k), \cdots, \sin(n\theta_k)
+      \end{pmatrix}^T \\
+  \end{aligned}
+\end{equation}
+
+根据式（\ref{eq:richarditer}）的 Richardson 迭代格式，并结合式（\ref{eq:eigvalvec}）可知，其迭代矩阵$\boldsymbol{G}_{\mathrm{R}}=\boldsymbol{I}-\omega\boldsymbol{A}$的特征值为：$\mu_k=1-\omega\lambda_k$，且其具有同$\boldsymbol{A}$一样的特征向量。如果记$\boldsymbol{x}^{\ast}$为一维离散Poisson方程的精确解，那么第$j$步迭代的[label]误差向量[/label]可以表示为：
+
+\begin{equation}
+  \label{eq:errorej}
+  \left.\begin{aligned}
+    \boldsymbol{x}_{k+1} &= \boldsymbol{G}_{\mathrm{R}}\boldsymbol{x}_k + \boldsymbol{f} \\
+    \boldsymbol{x}^{\ast} &= \boldsymbol{G}_{\mathrm{R}}\boldsymbol{x}^{\ast} + \boldsymbol{f} \\
+  \end{aligned}\;\right\} \;\Rightarrow\;
+  \begin{aligned}
+    \boldsymbol{x}_{k+1} - \boldsymbol{x}^{\ast} &= \boldsymbol{G}_{\mathrm{R}} (\boldsymbol{x}_k-\boldsymbol{x}^{\ast}) \\
+    &= \boldsymbol{G}_{\mathrm{R}}^{k+1} (\boldsymbol{x}_0-\boldsymbol{x}^{\ast}) \\
+    &= \boldsymbol{G}_{\mathrm{R}}^{k+1}\boldsymbol{e}_0
+  \end{aligned} \;\Rightarrow\;
+  \begin{aligned}
+    \boldsymbol{e}_j &= \boldsymbol{x}_j-\boldsymbol{x}^{\ast} = \boldsymbol{G}_{\mathrm{R}}^{j}(\boldsymbol{x}_0-\boldsymbol{x}^{\ast}) \\
+    &= \boldsymbol{G}_{\mathrm{R}}^j\boldsymbol{e}_0 \\
+  \end{aligned}
+\end{equation}
+
+另一方面，由于初始误差向量$\boldsymbol{e}_0$可以表示为迭代矩阵$\boldsymbol{G}_{\mathrm{R}}$的[label]基底向量[/label]的B线性组合，即：
+
+\begin{equation}
+  \label{eq:ejexpand}
+  \begin{aligned}
+    \boldsymbol{e}_0 = \sum_{k=1}^n \xi_k\boldsymbol{w}_k \;\Longrightarrow&\;
+    \boldsymbol{e}_1 = \boldsymbol{G}_{\mathrm{R}}\boldsymbol{e}_0 = \sum_{k=1}^n \xi_k\boldsymbol{G}_{\mathrm{R}}\boldsymbol{w}_k = \sum_{k=1}^n \xi_k\mu_k\boldsymbol{w}_k \\
+    \;\Longrightarrow&\; \boldsymbol{e}_2 = \boldsymbol{G}_{\mathrm{R}} \boldsymbol{e}_1 = \sum_{k=1}^n \xi_k \mu_k^2 \boldsymbol{w}_k \;\Longrightarrow\; \cdots \\
+    \;\Longrightarrow&\; \boldsymbol{e}_j = \sum_{k=1}^n \xi_k \mu_k^j \boldsymbol{w}_j = \sum_{k=1}^n \xi_k \left(1-\omega\lambda_k\right)^j \boldsymbol{w}_k \\
+    \;\underset{\omega=1/\gamma}{\Longrightarrow}&\; \boldsymbol{e}_j = \sum_{k=1}^n \xi_k \left(1-\dfrac{\lambda_k}{\gamma}\right)^j \boldsymbol{w}_k
+  \end{aligned}
+\end{equation}
+
+noindent其中，$\boldsymbol{w}_i$是迭代矩阵$\boldsymbol{G}_{\mathrm{R}}$的特征值$\mu_i=1-\omega\lambda_i$对应的特征向量。从式（\ref{eq:ejepand}）最后$\boldsymbol{e}_j$的表达式可以看出：其每一个分量都减少了$(1-\lambda_k/\gamma)^j$倍，而根据式（\ref{eq:eigvalvec}）中的$\lambda_k$的表达式$\lambda_{k}=4\sin^2(k\pi/2(n+1))$可知，$\lambda_1$具有最小值，且$|\lambda_1/\gamma|\ll1$，此时分量的收敛速度最慢。
+
+[alert type="info"][label]Gershgorin 定理[/label]：矩阵$\boldsymbol{A}$的任一特征值$\lambda$必定位于复平面中$a_{ii}$为圆心的闭环内，且其半径为：$\rho_i=\sum_{j=1,j\neq i}^{j=n}|a_{ij}|$。[/alert]
+
+在一维离散Poisson方程模型中，系数矩阵$\boldsymbol{A}$的最大特征值$\lambda_{\max}=\lambda_{k=n}\approx 4\sin^2(\pi/2)=4$，并且根据此前的假定，取$\rho(\boldsymbol{A})=\gamma=4$。那么，Richardson 迭代算法的[label]收敛因子[/label]为：
+
+\begin{equation}
+  \label{eq:convrate}
+  \begin{aligned}
+    \rho = \rho(\boldsymbol{G}) = \rho(\boldsymbol{I}-\omega\boldsymbol{A}) &= 1 - \dfrac{1}{\gamma}\lambda_{\min} = 1 - \dfrac{\lambda_{k=1}}{4} = 1 - \sin^2\dfrac{\theta_1}{2} \\
+    &= 1 - \sin^2\dfrac{\pi}{2(n+1)} \overset{h=1/(n+1)}{\underset{\left.\sin\theta\right|_{\theta \to 0} \approx \theta}{\approx}} 1 - \left(\dfrac{h\pi}{2}\right)^2 = 1 - \mathcal{O}(h^2)
+  \end{aligned}
+\end{equation}
+
+[alert type="error"]B注意：式（\ref{eq:convrate}）给出的重要信息是当网格粒度很细时（即$h$很小），此时的收敛速度很慢。[/alert]
+
+然而，多重网格方法所基于的思想是：不同的分量$\boldsymbol{w}_{k},k=1,2,\ldots,n$具有不同的收敛速度，其中有一半的误差分量具有很快的衰减速度（$k>n/2$），并将其称为[label]高频部分[/label]（high frequency components），或者也称之为[label]振荡部分[/label]（oscillatory part）。对于$k>n/2$的分量来说，它们的收敛因子可以表示为：
+
+\[
+  \begin{aligned}
+    \eta_k &= 1-\dfrac{\lambda_k}{\gamma} = 1 - \dfrac{4\sin^2\dfrac{\theta_k}{2}}{4} = 1 - \sin^2\dfrac{k\pi}{2(n+1)} \\
+    &= \left.\cos^2\dfrac{k\pi}{2(n+1)}\right|_{k>\frac{n}{2}} \leq \dfrac{1}{2}
+  \end{aligned}
+\]
+
+【Figure1】
+
+\subsubsection*{收敛性分析}
+
+上图显示了 Richardson 迭代算法应用于一维离散 Poisson 问题上时的收敛因子。在深入分析该图之前，需要先引入粗网格和细网格的概念。
+
+令[label]粗网格[/label]$\Omega_{2h}$的网格大小为$2h$，[label]细网格[/label]$\Omega_h$的网格大小则为$h$。针对一维离散 Poisson 方程，粗网格上的第$i$个网格点可以表示为$x_i^{2h}=i*(2h)$。后续的讨论将基于以下一个重要事实，即：$x_i^{2h}=x_{2i}^h$。换言之，粗网格上的第$i$个点对应于细网格上的第$2i$个点。那么，粗网格第$k$个特征向量的第$i$个分量$\left.\boldsymbol{w}_k^{2h}\right|_{x_{i}^{2h}}$与细网格上第$k$个特征向量的第$2i$个分量$\left.\boldsymbol{w}_k^h\right|_{x_{2i}^h}$，具有如下重要关系式：
+
+\begin{equation}
+  \label{eq:wiw2i}
+  \left.\begin{aligned}
+    \left.\boldsymbol{w}_{k}\right|_{i} &= \sin(i\theta_k) = \sin(i\dfrac{k\pi}{n+1}) \\
+    x_{i} &= i/h = i/(n+1) \\
+  \end{aligned} \;\right\} \;\Rightarrow\;
+  \left.\boldsymbol{w}_k\right|_{i} = \sin(k\pi x_i) \;\Rightarrow\;
+  \left\{\; \begin{array}{ccc}
+    \left.\boldsymbol{w}_{k}^{h}\right|_{2i} & = & \sin(k\pi x_{2i}^h) \\
+    \| & & \\
+    \left.\boldsymbol{w}_{k}^{2h}\right|_{i} & = & \sin(k\pi x_{i}^{2h}) \\
+  \end{array}\right.
+\end{equation}
+
+【Figure 2】
+
+如果取细网格上的B平滑模式（即$k\leq n/2$的情况，见上图），便能得到与之相对应的粗网格上的第$k$个模式。举例而言，对于$k=2$的$\boldsymbol{w}_2$模式，$9$个点的细网格（$n=7$）和$5$个点的粗网格（$n=3$）示意图如下：
+
+【Figure3】
+
+综上所述，可以得出以下两个重要结论：
+
+1. 高频（振荡）部分（即：$\theta_{n/2+1},\ldots,\theta_n$部分分量）收敛速度很快（每一个迭代步$j=1,2,\ldots$，该部分分量的收敛因子都小于$1/2$），并且该收敛因子B与步长$h$无关；
+
+2. 减少低频部分的方法是从粗网格转换到细网格；
+
+[alert type="success"][label]多重网格[/label]的B基本思想是：在细网格上经过若干次迭代后，得到近似解$\tilde{\boldsymbol{x}}_h$和迭代残差$\boldsymbol{d}_h$，然后把细网格上的残差方程变到粗网格上，再求解粗网格上的残差方程和对应残差$\boldsymbol{d}_{2h}$，最后把该残差$\boldsymbol{d}_{2h}$通过B插值变为细网格上的残差$\tilde{\boldsymbol{d}}_h$，它是$\boldsymbol{d}_h$的一个近似，且相比$\tilde{\boldsymbol{x}}_h$，$\tilde{\boldsymbol{u}}_h+\boldsymbol{d}_h$是一个更好的近似。[/alert]
+
+%[/aside_content]
+
+\end{document}
