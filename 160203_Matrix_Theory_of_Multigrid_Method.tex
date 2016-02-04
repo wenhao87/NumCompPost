@@ -1,0 +1,225 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{多重网格方法}
+
+此前，通过多篇文章详细介绍了如何使用 [label]Krylov 子空间[/label]迭代方法来求解线性方程组问题。特别地，对于离散的偏微分方程（Partial Differential Equations）而言，随着系统规模的增大，Krylov 子空间法的收敛速度将B急剧下降。而从此文开始，所要介绍和讨论的[label]多重网格[/label]]方法，理论上能实现收敛速度与网格大小无关。和 Krylov 子空间法的一个显著差别在于，多重网格方法最初设计用于解决离散B椭圆型偏微分方程，随后才逐步适用于其他类型的偏微分方程。相比 Krylov 子空间法（可以视为一种“通用”的求解方法），多重网格方法从原始问题中挖掘了更多的信息（针对具体的物理问题），因此在求解性能上B远好于 Krylov 子空间法。
+
+对于一个给定的物理问题模型，多重网格方法利用[label]]松弛[/label]（relaxation）技术针对不同的网格大小进行离散化，从而获得最优的收敛性能。为此，在前文详细讨论了主要的一些基于松弛类型的迭代方法（见详解基于矩阵分裂的迭代格式的收敛性、详解基于矩阵分裂的经典迭代算法及算法实现、经典迭代算法在二维离散Poisson方程上的收敛性等文）。虽然对于一些典型问题，使用类似 [label]Gauss-Seidel 迭代[/label]等方法，收敛速度较慢，但从中可以观察到一点：对应于[label]迭代矩阵[/label]B较大特征值的特征向量，沿着这些向量方向上的[label]误差向量[/label]（或者[label]残差向量[/label]），往往具有B很快的衰减速度。
+
+[alert type="success"]将这些具有较快衰减速度的特征向量称为[label]振荡模式[/label]（oscillatory mode）或者[label]高频模式[/label]（high-frequancey mode）；相对应地，将那些在标准松弛模式下较难衰减的部分，称为[label]平滑模式[/label]（smooth mode）或[label]低频模式[/label]（low-frequency mode）。[/alert]
+
+由于平滑模式在所有基本迭代方法上的收敛速度都很慢，因此需要将这些模式映射到B粗网格上的高频模式。换言之，为了消减这部分低频模式，需要将其从[label]细网格[/label]上转换到[label]粗网格[/label]上。在充分理解多重网格方法背后的思想和理论之前，还是需要先详细讨论一下物理模型问题，以及相关的矩阵理论。
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsection*{一维离散 Poisson 方程}
+
+\subsubsection*{一维 Poisson 方程的离散化}
+
+考察如下的B一维 Poisson 方程（相关分析也可参见详解一维和二维离散Poisson方程一文）：
+
+\begin{equation}
+  \label{eq:1dpoisson}
+  \begin{array}{ccl}
+    -u''(x) &=& f(x) \;,\quad x \in (0,1) \\
+    u(0) = u(1) &=& 0
+  \end{array}
+\end{equation}
+
+利用B中心差分对区间$[0,1]$进行$n+2$个点的等分，则每一个点$x_i$可以表示为：
+
+\begin{equation}
+  \label{eq:}
+  x_i=i \times h \;,\quad i=0,\ldots,n+1
+\end{equation}
+
+noindent其中间距$h=1/(n+1)$。此外，用$\Omega$来表示原始（连续）区域，而离散后的区域则标记为$\Omega_{h}$，因此有：$\Omega=(0,1)$和$\Omega_h=\{x_i\}_{i=0,\ldots,n+1}$。式（\ref{eq:1dpoisson}）经过离散后得到线性方程组$\boldsymbol{Ax}=\boldsymbol{b}$，其中$n \times n$阶[label]系数矩阵[label]$\boldsymbol{A}$和右端项$\boldsymbol{b}$具有如下形式：
+
+\begin{equation*}
+  \boldsymbol{A}_{\mathrm{1D}} =
+  \begin{pmatrix}
+    2 & -1 & & & \\
+    -1 & 2 & -1 & & \\
+    & \ddots & \ddots & \ddots & \\
+    & & -1 & 2 & -1 \\
+    & & & -1 & 2 \\
+  \end{pmatrix} \;,\quad
+  \boldsymbol{b} = h^2
+  \begin{pmatrix}
+    f(x_1) \\ f(x_2) \\ \vdots \\ f(x_{n-1}) \\ f(x_n)
+  \end{pmatrix}
+\end{equation*}
+
+[alert type="info"]一维离散 Poisson 方程的中心差分格式：$-u''(x_i) = -\frac{u(x_{i-1})+u(x_{i+1})-2u(x_i)}{h^2} \approx f(x_i)$[/alert]
+
+\subsubsection*{一维离散 Poisson 方程系数矩阵的特征分析}
+
+在详解一维和二维离散Poisson方程一文中给出了系数矩阵$\boldsymbol{T}_n$（也就是这里的$\boldsymbol{A}_{\mathrm{1D}}$）的特征值和特征向量。这里将给出详细的推导过程。令向量$\boldsymbol{u}$具有分量形式$\{\sin\theta,\sin2\theta,\ldots,\sin n\theta\}$，则$\Big(\boldsymbol{A}-2(1-\cos\theta)\boldsymbol{I}\Big)\boldsymbol{u}$的第$i$个分量可以表示为：
+
+\[
+  \begin{aligned}
+    \left.\Big(\boldsymbol{A}-2(1-\cos\theta)\boldsymbol{I}\Big)\boldsymbol{u}\right|_i &=
+    \begin{pmatrix}
+      2\cos\theta & -1 & & & \\
+      -1 & 2\cos\theta & -1 & & \\
+      & \ddots & \ddots & \ddots & \\
+      & & -1 & 2\cos\theta & -1 \\
+      & & & -1 & 2\cos\theta \\
+    \end{pmatrix}
+    \begin{pmatrix}
+      \sin\theta \\ \sin 2\theta \\ \vdots \\ \sin(n-1)\theta \\ \sin n\theta
+    \end{pmatrix}_i \\
+    &= -\sin(i-1)\theta + 2\cos\theta\sin(i\theta) - \sin(i+1)\theta \\
+    &= -2\sin i\theta \cos\theta + 2\cos\theta\sin i\theta = 0
+  \end{aligned}
+\]
+
+[alert type="info"]上式的推导用到了B和差化积公式：$\sin\alpha+\sin\beta=2\sin\frac{\alpha+\beta}{2}\cos\frac{\alpha-\beta}{2}$。[/alert]
+
+由此可以看出，如果令$\theta_k=(k\pi)/(n+1)$的话，系数矩阵$\boldsymbol{A}_{\mathrm{1D}}$的第$k$个特征值$\lambda_{k}$和对应的第$k$个特征向量$\boldsymbol{w}_{k}$可以表示为：
+
+\begin{equation}
+  \label{eq:1deigvalvec}
+  \theta_k = \dfrac{k\pi}{n+1} \;\Rightarrow\;
+  \left\{ \begin{aligned}
+    \lambda_k &= 2(1-\cos\theta_k) = 4\sin^2\dfrac{\theta_k}{2} = 4\sin^2\dfrac{k\pi}{2(1+n)} \\
+    \boldsymbol{w}_k &=
+      \begin{pmatrix}
+        \sin\theta_k, \sin(2\theta_k), \ldots, \sin(n\theta_k)
+      \end{pmatrix}^T \\
+  \end{aligned}\right. \;;\quad k=1,\ldots,n
+\end{equation}
+
+[alert type="success"]式（\ref{eq:1deigvalvec}）的B重要性在于它是分析二维离散 Poisson 方程，以及各个迭代方法对应迭代矩阵的收敛性的基础。[/alert]
+
+观察式（\ref{eq:1deigvalvec}），并结合式（\ref{eq:xi}），则特征向量$\boldsymbol{w}_k$的第$i$个分量$\sin(i\theta_k)$可以改写为如下形式：
+
+\begin{equation}
+  \label{eq:eigfun}
+  \sin(i\theta_k) = \sin\dfrac{ik\pi}{(n+1)} = \sin(ihk\pi) = \sin(x_ik\pi) = \boldsymbol{w}_{k}(x_i)
+\end{equation}
+
+[alert type="success"]这里用$\boldsymbol{w}_k(x_i)$来表示特征向量$\boldsymbol{w}_k$的第$i$个分量。更重要的是，式（\ref{eq:eigfun}）可以视为是函数$\sin(xk\pi)$在离散点$x_i$上的值。因此，也将其称为[label]特征函数[/label]（eigenfunction）。此外，不同的$k$值（$k=1,\ldots,n$）对应不同的特征函数，且这些特征函数都满足式（\ref{eq:1dpoisson}）给出的边界条件，即：$\boldsymbol{w}_k(x_0)=\boldsymbol{w}_k(x_{n+1})=0$。下图给出了当$n=7$时，一维离散 Poisson 方程对应的$7$个（$k=1,\ldots,7$）特征方程。[/alert]
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsection*{二维离散 Poisson 方程}
+
+\subsubsection*{二维 Poisson 方程的离散化}
+
+在一维 Poisson 方程的基础上，进一步考察如下的二维 Poisson 方程：
+
+\begin{equation}
+  \label{eq:2dpoisson}
+  \begin{array}{rcccc}
+    -\left(\dfrac{\partial^2u}{\partial x^2} + \dfrac{\partial^2u}{\partial y^2}\right) & = & f & \mathrm{in} & \Omega \\
+    u & = & 0 & \mathrm{on} & \Gamma \\
+  \end{array}
+\end{equation}
+
+这里的$\Omega$为矩形区域$(0,l_1)\times(0,l_2)$，而$\Gamma$则是该矩形区域的边界。类似一维离散化过程，二维离散化过程是沿着$x$-方向和$y$-方向分别等分$n+2$和$m+2$个点，即(通常，为了简化问题模型，可以令$h_1=h_2$)：
+
+\[
+  \begin{aligned}
+    x_i &= i \times h_1 \;,\; i=0,\ldots,n+1 \\
+    h_1 &= \dfrac{l_1}{n+1} \\
+  \end{aligned}
+  \quad;\quad
+  \begin{aligned}
+    y_j &= j \times h_2 \;,\; j=0,\ldots,m+1 \\
+    h_2 &= \dfrac{l_2}{m+1} \\
+  \end{aligned}
+\]
+
+同样，经过离散化后可以得到线性方程组$\boldsymbol{Ax}=\boldsymbol{b}$，其中系数矩阵$\boldsymbol{A}$具有如下形式：
+
+\begin{equation*}
+  \boldsymbol{A}_{\mathrm{2D}} =
+  \begin{pmatrix}
+    \boldsymbol{B} & -\boldsymbol{I} & & & \\
+    -\boldsymbol{I} & \boldsymbol{B} & -\boldsymbol{I} & & \\
+    & \ddots & \ddots & \ddots & \\
+    & & -\boldsymbol{I} & \boldsymbol{B} & -\boldsymbol{I} \\
+    & & & -\boldsymbol{I} & \boldsymbol{B} \\
+  \end{pmatrix} \;,\quad
+  \boldsymbol{B} =
+  \begin{pmatrix}
+    4 & -1 & & & \\
+    -1 & 4 & -1 & & \\
+    & \ddots & \ddots & \ddots & \\
+    & & -1 & 4 & -1 \\
+    & & & -1 & 4 \\
+  \end{pmatrix}
+\end{equation*}
+
+在详解一维和二维离散Poisson方程一文中指出，二维离散 Poisson 方程的系数矩阵可以表示为$\boldsymbol{A}_{\mathrm{2D}}=\boldsymbol{I}\otimes\boldsymbol{T}_x+\boldsymbol{T}_y\otimes\boldsymbol{I}$，其中$\otimes$表示为 [label]Kronecker 积[/label]；而$n \times n$阶矩阵$\boldsymbol{T}_x$和$m \times m$阶矩阵$\boldsymbol{T}_y$都具有相同的一维离散 Poisson 方程系数矩阵的形式：$\mathrm{tridiag}(-1,2,-1)$。进一步，系数矩阵$\boldsymbol{A}_{\mathrm{2D}}$也可以表示为 [label]Kronecker 和[/label]的形式，即：$\boldsymbol{A}_{\mathrm{2D}}=\boldsymbol{T}_x \oplus \boldsymbol{T}_y$。在对系数矩阵$\boldsymbol{A}_{\mathrm{2D}}$进行特征分析之前，需要引入如下一个重要结论：
+
+\begin{equation}
+  \label{eq:kronecker}
+  (\boldsymbol{T}_x \oplus \boldsymbol{T}_y)(\boldsymbol{v} \otimes \boldsymbol{w}) = \boldsymbol{v} \otimes (\boldsymbol{T}_x\boldsymbol{w}) + (\boldsymbol{T}_y\boldsymbol{v}) \otimes \boldsymbol{w}
+\end{equation}
+
+\subsubsection*{二维离散 Poisson 方程系数矩阵的特征分析}
+
+如果令$\sigma_k$为$\boldsymbol{T}_x$的特征值，对应的特征向量为$\boldsymbol{w}_k$；令$\mu_l$为$\boldsymbol{T}_y$的特征值，对应的特征向量为$\boldsymbol{v}_l$，代入式（\ref{eq:kronecker}）后，可以得到：
+
+\begin{equation}
+  \label{eq:2deigderv}
+  \left.\begin{aligned}
+    \boldsymbol{A}_{\mathrm{2D}} &= \boldsymbol{T}_x \oplus \boldsymbol{T}_y \\
+    \boldsymbol{T}_x \boldsymbol{w}_k &= \sigma_k \boldsymbol{w}_k \\
+    \boldsymbol{T}_y \boldsymbol{v}_l &= \mu_l \boldsymbol{v}_l \\
+  \end{aligned}\;\right\} \;\Rightarrow\;
+  \begin{aligned}
+    (\boldsymbol{T}_x \oplus \boldsymbol{T}_y)(\boldsymbol{v}_l \otimes \boldsymbol{w}_k) &= \boldsymbol{v}_l \otimes (\boldsymbol{T}_x \boldsymbol{w}_k) + (\boldsymbol{T}_y\boldsymbol{v_l}) \otimes \boldsymbol{w}_k \\
+    &= \boldsymbol{v}_l \otimes \sigma_k \boldsymbol{w}_k + \mu_l\boldsymbol{v}_l \otimes \boldsymbol{w}_k \\
+    &= (\sigma_k+\mu_l)(\boldsymbol{v}_l \otimes \boldsymbol{w}_k)
+  \end{aligned}
+\end{equation}
+
+式（\ref{eq:2deigderv}）说明二维离散 Poisson 方程系数矩阵$\boldsymbol{A}_{\mathrm{2D}}$具有特征值$\lambda_{kl}=\sigma_k+\mu_l$，对应的特征向量则为$\boldsymbol{z}_{kl}=\boldsymbol{v}_l\otimes\boldsymbol{w}_k$。那么，将式（\ref{eq:1deigvalvec}）中一维离散 Poisson 方程系数矩阵$\boldsymbol{A}_{\mathrm{1D}}$的特征值和特征向量代入的话，就可以得到二维离散 Poisson 方程特征值和特征向量的表达式形式，即：
+
+\begin{equation}
+  \label{eq:2deigvalvec}
+  \begin{aligned}
+    \lambda_{kl} &= 2 \left(1 - \cos\dfrac{k\pi}{n+1}\right) + 2 \left(1 - \cos\dfrac{l\pi}{n+1}\right) \\
+    &= 4 \left( \sin^2\dfrac{k\pi}{2(n+1)} + \sin^2\dfrac{l\pi}{2(m+1)}\right)
+  \end{aligned} \quad,\quad
+  \begin{aligned}
+    & \boldsymbol{z}_{kl} = \boldsymbol{v}_l \otimes \boldsymbol{w}_k \\
+    \Rightarrow\;& \boldsymbol{z}_{kl}(x_i,y_j) = \sin(x_ik\pi) \sin(y_jl\pi)
+  \end{aligned}
+\end{equation}
+
+至此，对椭圆型偏微分方程的一维和二维离散 Poisson 方程的系数矩阵进行了详细的特征分析。这有助于更好地分析和理解应用不同迭代算法后（如：Richardson 迭代、带权重的 Jacobi 迭代、Gauss-Seidel 迭代等），迭代格式中的迭代矩阵所具有的特征特性和收敛性能。
+
+%[/aside_content]
+
+\end{document}
