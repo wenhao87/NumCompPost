@@ -157,3 +157,8 @@ pythontex-files-*/
 
 # Latexian
 TSWLatexianTemp*
+
+# Mathematica Notebook and PNGs
+*.nb
+*.png
+
