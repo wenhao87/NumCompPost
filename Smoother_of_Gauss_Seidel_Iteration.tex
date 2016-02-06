@@ -1,0 +1,336 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{Gauss-Seidel 迭代光滑子}
+
+上文介绍了两种[label]光滑子[/label]（smoother）：Richardson 迭代和带权重的 Jacobi 迭代（见Richardson 迭代和带权重的 Jacobi 迭代光滑子一文）。而事实上，在实际应用中，相比这两种光滑子，Gauss-Seidel 迭代或者使用了红黑排序（见详解基于矩阵分裂的经典迭代算法及算法实现一文）的 Gauss-Seidel 迭代B更适合作为光滑子，但分析起来也更为复杂）。本文将详细分析基于 Gauss-Seidel 迭代的光滑子。
+
+[alert type="info"]另一种经典迭代算法 SOR 迭代（$\omega\neq1$时）一般很少用作光滑子，因为其超松弛特性往往不能带来什么优势。[/alert]
+
+\subsection*{Gauss-Seidel 迭代特征分析}
+
+\subsubsection*{Gauss-Seidel 迭代格式}
+
+此前在经典迭代算法在二维离散 Poisson 方程上的收敛性一文中曾指出，Jacobi 迭代格式和 Gauss-Seidel 迭代格式两者谱半径之间的关系为$\rho(\boldsymbol{G}_{\mathrm{GS}})=\rho(\boldsymbol{G}_{\mathrm{J}})^2$。这里将给出详细的推导过程。
+
+已知 Gauss-Seidel 迭代格式（见详解基于矩阵分裂的经典迭代算法及算法实现一文），那么在一维离散 Poisson 方程情况下，迭代矩阵$\boldsymbol{G}_{\mathrm{GS}}$的特征值$\lambda$和对应的特征向量$\boldsymbol{u}$满足如下关系式：
+
+\begin{equation}
+  \label{eq:gsiter}
+  \begin{aligned}
+    & \left.\begin{aligned}
+      \boldsymbol{x}_{j+1} &= (\boldsymbol{D} - \boldsymbol{L})^{-1} \boldsymbol{U} \boldsymbol{x}_{j} + (\boldsymbol{D} - \boldsymbol{L})^{-1} \boldsymbol{b} \\
+      \boldsymbol{G}_{\mathrm{GS}} &= (\boldsymbol{D} - \boldsymbol{L})^{-1} \boldsymbol{U}  \\
+    \end{aligned} \;\right\} \;\Rightarrow\;
+    \begin{aligned}
+      \boldsymbol{G}_{\mathrm{GS}}\boldsymbol{u} = \lambda\boldsymbol{u} &\;\Rightarrow\; (\boldsymbol{D}-\boldsymbol{L})^{-1}\boldsymbol{U} \boldsymbol{u} = \lambda \boldsymbol{u} \\
+      &\;\Rightarrow\; \Big(\boldsymbol{U}-\lambda (\boldsymbol{D} - \boldsymbol{L})\Big)\boldsymbol{u} = 0 \\
+    \end{aligned} \\
+    \Rightarrow\;& \begin{pmatrix}
+      -2\lambda & 1 &  &  &  \\
+      \lambda & \ddots & \ddots & & \\
+      & \lambda & -2\lambda & 1 & \\
+      & & \ddots & \ddots & 1 \\
+      & & & \lambda & -2\lambda \\
+    \end{pmatrix}
+    \begin{pmatrix}
+      \xi_1 \\ \vdots \\ \xi_{j} \\ \vdots \\ \xi_{n} \\
+    \end{pmatrix} =
+    \begin{pmatrix}
+      0 \\ \vdots \\ 0 \\ \vdots \\ 0 \\
+    \end{pmatrix} \;\Rightarrow\;
+    \xi_{j+1} - 2\lambda\xi_{j} + \lambda\xi_{j-1} = 0
+  \end{aligned}
+\end{equation}
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsubsection*{Gauss-Seidel 迭代特征分析}
+
+式（\ref{eq:gsiter}）中的$\xi_j$表示特征向量$\boldsymbol{u}$的第$j$个分量，而在边界条件上满足$\xi_0=\xi_{n+1}=0$。式（\ref{eq:gsiter}）最后是一个[label]二阶齐次线性差分方程[/label]。求解该方程的方法是寻找一个具有形式$\xi_j=r^j$的[label]通解[/label]。将其代入式（\ref{eq:gsiter}）便可得到：
+
+\begin{equation}
+  \label{eq:2ndhom}
+  r^2 - 2\lambda r + \lambda = 0 \;\Rightarrow\;
+  \left\{ \; \begin{aligned}
+    r_1 &= \lambda + \sqrt{\lambda^2-\lambda} \\
+    r_2 &= \lambda - \sqrt{\lambda^2-\lambda} \\
+  \end{aligned} \right. \;\Rightarrow\;
+  \xi_j = \alpha r_1^j + \beta r_2^j
+\end{equation}
+
+式（\ref{eq:2ndhom}）最后给出了二阶齐次线性差分方程的通解。由边界条件，可以得到通解系数$\alpha$和$\beta$之间的关系，并最终得到关于特征值$\lambda$的方程：
+
+\begin{equation}
+  \label{eq:gensol}
+  \left.\begin{aligned}
+    \xi_0 &= \alpha + \beta = 0 \\
+    \xi_{n+1} &= \alpha r_1^{n+1} + \beta r_2^{n+1} \\
+  \end{aligned} \;\right\} \;\Rightarrow\;
+  \begin{aligned}
+    r_1^{n+1} - r_2^{n+1} = 0 &\;\Rightarrow\; (r_1^2)^{n+1} - (r_1r_2)^{n+1} = 0 \\
+    &\;\Rightarrow\; \left(\dfrac{\left(\lambda + \sqrt{\lambda^2-\lambda} \right)^2}{\lambda}\right)^{n+1} = 1
+  \end{aligned}
+\end{equation}
+
+式（\ref{eq:gensol}）中隐含的条件是$\lambda\neq0$，如果令$\lambda\equiv\cos^2\theta$，则式（\ref{eq:gensol}）可以进一步简化为：
+
+\begin{equation}
+  \label{eq:cstheta}
+  \begin{aligned}
+    \left.\begin{aligned}
+      c &= \cos\theta \\
+      s &= \sin\theta \\
+    \end{aligned} \;\right\} &\;\Rightarrow\;
+    \begin{aligned}
+      \dfrac{\left(c^2+\sqrt{c^4-c^2}\right)^2}{c^2} &= \dfrac{\left(c^2 \pm \imath cs\right)^2}{c^2} = \dfrac{c^4 \pm 2\imath c^3s - c^2s^2}{c^2} \\
+      &= c^2 \pm 2\imath cs - s^2 = (c \pm \imath s)^2 \\
+    \end{aligned} \\
+    &\;\Rightarrow\; (\cos\theta\pm\imath\sin\theta)^{2(n+1)} = 1
+  \end{aligned}
+\end{equation}
+
+式（\ref{eq:cstheta}）中的符号$\pm$在$\cos\theta$和$\sin\theta$同符号时取正，反之则取负。进一步推导可以得到：
+
+\begin{equation}
+  \label{eq:thetak}
+  \begin{aligned}
+    \left.\begin{aligned}
+      e^{\imath\theta} &= \cos\theta + \imath\sin\theta \\
+      e^{-\imath\theta} &= \cos\theta - \imath\cos\theta \\
+    \end{aligned}\;\right\} &\;\Rightarrow\;
+    e^{\pm\imath2\theta(n+1)} = 1 \;\Rightarrow\; (n+1)\theta = k\pi \\
+    &\;\Rightarrow\; \theta = \theta_k \equiv \dfrac{k\pi}{n+1} \;,\quad
+    k=1,\ldots,n
+  \end{aligned}
+\end{equation}
+
+至此，便能得到特征值$\lambda_k=\cos^2\theta_k$，其中$\theta_k$具有式（\ref{eq:thetak}）中最后的形式。而这也印证了此前给出的结论：$\rho(\boldsymbol{G}_{\mathrm{GS}})=\rho(\boldsymbol{G}_{\mathrm{J}})^2$。
+
+进一步推导 Gauss-Seidel 迭代矩阵的特征向量$\boldsymbol{u}$的形式。结合式（\ref{eq:2ndhom}）和式（\ref{eq:gensol}）可知，特征向量$\boldsymbol{u}$的第$j$个分量可以表示为：$\xi_j=r_1^j-r_2^j$的形式。最后再结合式（\ref{eq:cstheta}）和式（\ref{eq:thetak}）中关于$\lambda$的表示式，则可以推得：
+
+\begin{equation}
+  \label{eq:eigvec}
+  \begin{aligned}
+    r_1^j &= \left(c_k^2 + \sqrt{c_k^4-c_k^2}\right)^j = \left(c_k^2 \pm \imath c_ks_k\right)^j = c_k^j(c_k \pm \imath s_k)^j \\
+    r_2^j &= \left(c_k^2 - \sqrt{c_k^4-c_k^2}\right)^j = \left(c_k^2 \mp \imath c_ks_k\right)^j = c_k^j(c_k \mp \imath s_k)^j \\
+    \Rightarrow\; \xi_j &= c_k^j\Big((c_k \pm \imath s_k)^j - (c_k \mp \imath s_k)^j\Big) = c_k^j\Big(e^{\pm\imath\theta_kj} - e^{\mp\imath\theta_kj}\Big) \\
+    &= (\cos\theta_k)^j\Bigg[\Big(\cos(j\theta_k)\pm\imath\sin(j\theta_k)\Big) - \Big(\cos(j\theta_k)\mp\imath\sin(j\theta_k)\Big) \Bigg] \\
+    &= \pm2\imath(\cos\theta_k)^j\sin(j\theta_k)
+  \end{aligned}
+\end{equation}
+
+[alert type="error"]B注意：式（\ref{eq:eigvec}）最后$\pm$符号的正负性将由$(\cos\theta_k)^j$和$(\sin\theta_k)^j$的正负性决定。[/alert]
+
+下图给出了当$n=11$时，$11$个特征函数（$k=1,\ldots,11$）的图像：
+
+【Figure】
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsubsection*{Gauss-Seidel 迭代光滑子分析}
+
+事实上，可以进一步对式（\ref{eq:eigvec}）的特征向量表达式进行简化。由于$\sin(j\theta_k)$的值始终为正，因此$\pm$的符号即为$\cos\theta_k$的符号；再去掉标量常数$2\imath$，那么特征向量$\boldsymbol{u}_k$可以表示为：
+
+\begin{equation}
+  \label{eq:eigvecnew}
+  \boldsymbol{u}_k = \Big(|\cos\theta_k|^j\sin(j\theta_k)\Big)^T \;,\quad j=1,\ldots,n
+\end{equation}
+
+[alert type="error"]B注意：式（\ref{eq:eigvecnew}）在$k=6$时无法得到正确的结果，因为此时特征值$\lambda_{k=6}=0$，特征向量$\boldsymbol{u}_{k=6}=0$为零向量（从上图也可以看出）。针对此特例，可以将$\boldsymbol{e}_1$作为一个特征向量。[/alert]
+
+进一步观察特征值$\lambda_{k}=\cos^2\theta_k$，下图给出了$n=11$时特征值$\lambda_k$的分布情况：
+
+【Figure】
+
+从上图可以看出，最小的特征值位于$k=n/2$附近，而与之相对应的特征向量（见特征函数图）B衰减很快；而其他部分则很难消减。这和 Jacobi 迭代的情形截然不同，后者是随着$k$越大，衰减速度越快。
+
+最后值得关注的一点是，位于中间附近（$k=n/2$）的特征值所对应的特征向量B并不是最高频（振荡）的部分。具体来说，观察此前的特征函数图可以发现，高频振荡模式对应的特征值具有更大的$k$值，但它们却无法快速衰减。
+
+[alert type="info"]Gauss-Seidel 迭代矩阵的特征向量与原始系数矩阵$\boldsymbol{A}$之间并B没有十分明确的关系。[/alert]
+
+\pagebreak
+
+基于矩阵理论，上文对一维和二维离散 Poisson 方程进行了详细的特征分析和推导（见多重网格方法相关的矩阵理论一文），这有助于更好地分析在应用了不同迭代格式之后，不同迭代矩阵所具有的特征特性。这些都是理解和分析多重网格方法的必要前提。本文主要就两种基本迭代算法：Richardson 迭代和带权重的 Jacobi 迭代，讨论它们的特征特性。对于 Gauss-Seidel 迭代将另文详述。这三种迭代算法都可作为[label]光滑子[/label]（smoother）来使用。
+
+\subsection*{Richardson 迭代}
+
+事实上，此前已经论述了 Richardson 迭代算法及其相关特性，并由此引入了多重网格方法（见由 Richardson 迭代引入多重网格方法），本文在此将做稍加补充和整理。这里将用 Richardson 迭代来分析一维离散 Poisson 方程的情况，并使用一个固定参数$\omega$。[label]Richardson 迭代[/lable]算法的迭代格式及其迭代矩阵$\boldsymbol{G}_{\mathrm{R}}$可以表示为：
+
+\begin{equation}
+  \label{eq:richardson}
+    \boldsymbol{u}_{j+1} = \boldsymbol{u}_j + \omega(\boldsymbol{b}-\boldsymbol{Au}_j) = \underbrace{(\boldsymbol{I} - \omega\boldsymbol{A})}_{\boldsymbol{G}_{\mathrm{R}}}\boldsymbol{u}_j + \omega\boldsymbol{b} \\
+\end{equation}
+
+如由 Richardson 迭代引入多重网格方法一文中给出的分析，Richardson 迭代算法的B收敛条件是$0<\omega<2/\rho(\boldsymbol{A})$。通常，$\rho(\boldsymbol{A})$具有上界$\gamma$，即：$\rho(\boldsymbol{A})\leq\gamma$，因此往往会取$\omega=1/\gamma$，此时它同样满足收敛条件。
+
+\subsection*{带权重的 Jacobi 迭代}
+
+下面将引入带权重的 Jacobi 算法，并将其同时应用于一维和二维离散 Poisson 方程。由标准的 [label]Jacobi 迭代[/label]可知，其迭代格式为：
+
+\begin{equation}
+  \label{eq:jacobi}
+  \boldsymbol{u}_{j+1} = \boldsymbol{D}^{-1} (\boldsymbol{L}+\boldsymbol{U}) \boldsymbol{u}_j + \boldsymbol{D}^{-1}\boldsymbol{f}
+\end{equation}
+
+[label]带权重的 Jacobi 迭代[/label]则是取权重参数$\omega$，并结合式（\ref{eq:jacobi}）中的$\boldsymbol{u}_{j+1}$和当前迭代向量$\boldsymbol{u}_j$之后所得到的，因此有：
+
+\begin{equation}
+  \label{eq:weightedjacobi}
+  \begin{aligned}
+    \boldsymbol{u}_{j+1} &= \omega \overbrace{\left[\boldsymbol{D}^{-1} (\boldsymbol{L}+\boldsymbol{U}) \boldsymbol{u}_{j} + \boldsymbol{D}^{-1}\boldsymbol{f}\right]}^{\boldsymbol{u}_{j+1}} + (1-\omega)\boldsymbol{u}_j \\
+    &= \underbrace{\left[(1-\omega)\boldsymbol{I} + \omega\boldsymbol{D}^{-1}(\boldsymbol{L}+\boldsymbol{U})\right]}_{\boldsymbol{G}_{\mathrm{J}_\omega}} \boldsymbol{u}_{j} + \omega\boldsymbol{D}^{-1}\boldsymbol{f}
+  \end{aligned} \quad\Rightarrow\quad
+  \begin{aligned}
+    \boldsymbol{G}_{\mathrm{J}_\omega} &= (1-\omega)\boldsymbol{I} + \omega\boldsymbol{D}^{-1}(\boldsymbol{D}-\boldsymbol{A}) \\
+    &= \boldsymbol{I} - \omega\boldsymbol{D}^{-1}\boldsymbol{A}
+  \end{aligned}
+\end{equation}
+
+由式（\ref{eq:weightedjacobi}）便可以得到如下带权重的 Jacobi 迭代的收敛条件：
+
+\begin{equation}
+  \label{eq:wjitercon}
+  -1 < 1 - \omega\rho(\boldsymbol{D}^{-1}\boldsymbol{A}) < 1 \;\Rightarrow\;
+  0 < \omega < \dfrac{2}{\rho(\boldsymbol{D}^{-1}\boldsymbol{A})}
+\end{equation}
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsubsection*{一维离散 Poisson 方程下的带权重 Jacobi 迭代}
+
+对于一维离散 Poisson 方程，其对角矩阵$\boldsymbol{D}=2\boldsymbol{I}$；并且由上文的讨论可知一维离散 Poisson 方程的特征值$\lambda_k=2(1-\cos\frac{k\pi}{n+1})$（见多重网格方法相关的矩阵理论一文）,因此迭代矩阵$\boldsymbol{G}_{\mathrm{J}_\omega}$及其特征值$\mu_k$可以表示为：
+
+\begin{equation}
+  \label{eq:1dwjeig}
+  \begin{aligned}
+    \boldsymbol{G}_{\mathrm{J}_\omega} &= \boldsymbol{I} - \dfrac{\omega}{2}\boldsymbol{A} \\
+    \mu_k &= 1 - \dfrac{\omega}{2}(2-2\cos\dfrac{k\pi}{n+1}) = 1 - 2\omega\left(\sin^2\dfrac{k\pi}{2(n+1)}\right) \\
+  \end{aligned}
+\end{equation}
+
+观察式（\ref{eq:1dwjeig}）可知$\mu_k$是一个关于$k$的递减函数，如果令$s=\sin^2\left(\pi/2(n+1)\right)$的话，则有：
+
+\begin{equation}
+  \label{eq:1dwjeigrange}
+  \begin{aligned}
+    & \begin{aligned}
+      \max{\mu_k} = \mu_{1} &= 1 - 2\omega\sin^2\dfrac{\pi}{2(n+1)} = 1 - 2\omega s^2 \\
+      \min{\mu_k} = \mu_{n} &= 1 - 2\omega\sin^2\dfrac{n\pi}{2(n+1)} = 1 - 2\omega\cos^2\left(\dfrac{\pi}{2}-\dfrac{n\pi}{2(n+1)}\right) \\
+      &= 1 - 2\omega\cos^2\left(\dfrac{\pi}{2(n+1)}\right) = (1-2\omega) + 2\omega s^2 \\
+    \end{aligned} \\
+    \Rightarrow \; & (1-2\omega)+2\omega s^2 \leq \mu_k \leq 1 - 2\omega s^2 \\
+    \Rightarrow \; & \rho(\boldsymbol{G}_{\mathrm{J}_\omega}) = \max\Big\{|(1-2\omega)+2\omega s^2|,|1-2\omega s^2|\Big\}
+  \end{aligned}
+\end{equation}
+
+式（\ref{eq:1dwjeigrange}）给出了迭代矩阵$\boldsymbol{G}_{\mathrm{J}_\omega}$的特征值$\mu_k$的范围及其[label]谱半径[/label]。事实上，该谱半径是关于$\omega$的函数：当$\omega<0$或$\omega>1$时，$\rho(\boldsymbol{G}_{\mathrm{J}_\omega})$>1，迭代算法发散；当$0\leq\omega\leq1$时，从下图可以看出，谱半径即为$1-2\omega s^2$。当$n$很大时，$s\approx\frac{1}{2}h\pi$，则谱半径$\rho(\boldsymbol{G}_{\mathrm{J}_\omega}) \approx 1-\frac{1}{2}\omega h^2\pi^2$。
+
+[alert type="error"]B注意：由于谱半径$\rho(\boldsymbol{G}_{\mathrm{J}_\omega})=1-2\omega s^2$是关于参数$\omega$的函数，且其在区间$[0,1]$上是递减函数，换言之，$\omega$的最优值是$1$，此时即为标准 Jacobi 迭代。因此相对标准 Jacobi 迭代，引入参数$\omega$后的带权重的 Jacobi 迭代B不会带来任何加速效果。[/alert]
+
+[alert type="success"]尽管带权重的 Jacobi 迭代本身不会带来任何加速，但如果将其视作B光滑子的话，效果则完全不一样了。[/alert]
+
+前文提到（见由 Richardson 迭代引入多重网格方法和多重网格方法相关的矩阵理论等文），[label]特征函数[/label]在$k>n/2$时处于[label]高频模式[/label]（亦即[label]振荡模式[/label]）。上文提到$\mu_k$是关于$k$的递减函数，因此针对高频模式，式（\ref{eq:1dwjeigrange}）中的$\mu_k$的范围可以进一步缩小为：
+
+\begin{equation}
+  \label{eq:1dhighrange}
+  \begin{aligned}
+    k \geq \dfrac{n+1}{2} \;&\Rightarrow\;
+    \left\{\; \begin{aligned}
+      \max\mu_k &= \mu_{k=\frac{n+1}{2}} = 1 - 2\omega \sin^2\left(\dfrac{\pi}{4}\right) = 1 - \omega \\
+      \min\mu_k &= \mu_{k=n} = (1-2\omega)+2\omega s^2 \\
+    \end{aligned}\right. \\
+    &\Rightarrow\; 1-2\omega < (1-2\omega) + 2\omega s^2 \leq \mu_{k} \leq 1 - \omega
+  \end{aligned}
+\end{equation}
+
+[alert type="info"][label]平滑因子[/label]（smoothing factor）定义为B高频模式下特征值绝对值的最大值，也可将其视为高频模式下的谱半径。[/alert]
+
+类似于由 Richardson 迭代引入多重网格方法一文中所使用的求解参数$\omega$最优值的情形，式（\ref{eq:1dhighrange}）中的$\omega$在$\frac{2}{3}$处取得最优值，即当$\omega=\frac{2}{3}$时谱半径最小，最优平滑因子（与网格大小$h$无关）为$\frac{1}{3}$。
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsubsection*{二维离散 Poisson 方程下的带权重 Jacobi 迭代}
+
+类似地，可以将一维情况拓展至二维情况。此时，对角矩阵$\boldsymbol{D}=4\boldsymbol{I}$，系数矩阵$\boldsymbol{A}$的特征值为$\lambda_{kl}=\sigma_k+\mu_l$（见多重网格方法相关的矩阵理论一文）。因此，二维情况下时的迭代矩阵$\boldsymbol{G}_{\mathrm{J}_\omega}$及其特征值$\mu_{kl}$可以表示为：
+
+\begin{equation}
+  \label{eq:2dwjeig}
+  \begin{aligned}
+    \boldsymbol{G}_{\mathrm{J}_\omega} &= \boldsymbol{I} - \dfrac{\omega}{4}\boldsymbol{A} \\
+    \mu_{kl} &= 1 - \dfrac{\omega}{4}\left(4\sin^2\dfrac{k\pi}{2(n+1)} + 4\sin^2\dfrac{l\pi}{2(m+1)}\right) \\
+    &= 1 - \omega\left(\sin^2\dfrac{k\pi}{2(n+1)} + \sin^2\dfrac{l\pi}{2(m+1)}\right)
+  \end{aligned}
+\end{equation}
+
+同样，可以令$s_x$和$s_y$来表示式（\ref{eq:2dwjeig}）的特征值范围：
+
+\begin{equation}
+  \label{eq:2dwjeigrange}
+  \begin{aligned}
+    \begin{aligned}
+      s_x &= \sin^2\left(\dfrac{\pi}{2(n+1)}\right) \\
+      s_y &= \sin^2\left(\dfrac{\pi}{2(m+1)}\right) \\
+    \end{aligned} \;&\Rightarrow\;
+    \left\{\; \begin{aligned}
+      \max\mu_{kl} &= \mu_{11} = 1 - \omega (s_x^2 + s_y^2) \\
+      \min\mu_{kl} &= \mu_{nm} = 1 - \omega (1 - s_x^2 + 1 - s_y^2) \\
+    \end{aligned} \right. \\
+    \;&\Rightarrow\; (1-2\omega) + \omega(s_x^2+s_y^2) \leq \mu_{kl} \leq 1 - \omega(s_x^2+s_y^2) \\
+    \;&\Rightarrow\; \rho(\boldsymbol{G}_{\mathrm{J}_\omega}) \approx 1 - \omega \left[ \left(\dfrac{1}{2}h_1\pi\right)^2 + \left(\dfrac{1}{2}h_2\pi\right)^2 \right] \approx 1 - \mathcal{O}(h^2)
+  \end{aligned}
+\end{equation}
+
+和一维离散 Poisson 方程的结论类似，二维情况下$\omega=1$时最优，即谱半径最小，此时相比标准 Jacobi 迭代没有任何加速效果。但是如果考虑高频模式下（$k>n/2$）的特征函数，它们的衰减速度很快，此时它们的特征值范围为（$\omega=\frac{2}{3}$时取得最优平滑因子$\frac{1}{3}$）：
+
+\begin{equation}
+  \label{eq:1dhighrange}
+  \begin{aligned}
+    \begin{aligned}
+      k &\geq (n+1)/2 \\
+      l &\geq (m+1)/2 \\
+    \end{aligned}
+    \;&\Rightarrow\;
+    \left\{\; \begin{aligned}
+      \max\mu_{kl} &= \mu_{\substack{k=(n+1)/2\\l=(m+1)/2}} = 1 - 2\omega \sin^2\left(\dfrac{\pi}{4}\right) = 1 - \omega \\
+      \min\mu_{kl} &= \mu_{\substack{k=n\\l=m}} = (1-2\omega)+\omega (s_x^2+s_y^2) \\
+    \end{aligned}\right. \\
+    &\Rightarrow\; 1-2\omega < (1-2\omega) + \omega (s_x^2+s_y^2) \leq \mu_{kl} \leq 1 - \omega
+  \end{aligned}
+\end{equation}
+
+[alert type="info"]事实上，在实际应用中，相比 Jacobi 迭代或者 Richardson 迭代，Gauss-Seidel 迭代或者使用了红黑排序（见详解基于矩阵分裂的经典迭代算法及算法实现一文）的 Gauss-Seidel 迭代B更适合作为光滑子（但分析起来也更为复杂），将另文详述。[/alert]
+
+%[/aside_content]
+
+\end{document}
