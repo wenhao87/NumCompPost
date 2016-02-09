@@ -1,0 +1,158 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{几何多重网格方法概述}
+
+此前详细介绍了三种用于多重网格方法中的[label]光滑子[/label]（smoother），分别是：[label]Richardson 迭代[/label]光滑子、[label]带权重的 Jacobi 迭代[/label]光滑子、以及 [label]Gauss-Seidel 迭代[/label]光滑子（见 Richardson 迭代和带权重的 Jacobi 迭代光滑子和 Gauss-Seidel 迭代光滑子等文）。通过若干次迭代后，误差的高频部分很快衰减，因此都是很好的光滑子；但另一方面，低频部分却很难消减，从而有了多重网格方法，即：将残差方程限制在更粗的网格上，以此来减少低频误差（见由 Richardson 迭代引入多重网格方法和多重网格方法相关的矩阵理论等文）。本文将仅作为几何多重网格方法的概述，所使用的记号等与此后详细介绍的文章略有不同，但它们的核心思想都是一致的。
+
+[alert type="success"]实用的多重网格技术，最初由 Brandt 在 1970 年引入。它可以经过$\mathcal{O}(N)$的操作求解 $N$ 个网格点离散后的[label]椭圆方程[/label]。[/alert]
+
+\subsection*{几何多重网格}
+
+\subsubsection*{问题模型的离散化}
+
+考虑二维规则区域上的椭圆问题：$\mathcal{L}\boldsymbol{u}=\boldsymbol{f}$，其中$\mathcal{L}$为线性椭圆微分算子；$\boldsymbol{f}$为方程的右端项，并假设$\boldsymbol{u}$在求解区域$\Omega$的边界上为$0$。换言之，$\mathcal{L}\boldsymbol{u}$可以表示为$-(\boldsymbol{u}_{xx}+\boldsymbol{u}_{yy})$。那么，用[label]五点差分[/label]格式离散后，便能得到如下的线性方程组（其中$h=1/N$为网格大小，这里用$N$代表偶数，等价于此前的$n+1$，且$\boldsymbol{A}_h$的阶数为$N^2 \times N^2$）：
+
+\begin{equation}
+  \label{eq:5ptls}
+  \boldsymbol{A}_h\boldsymbol{u}_h = \boldsymbol{f}_h
+\end{equation}
+
+由此前的讨论可知，Gauss-Seidel 迭代法是一个很好的光滑子（见 Gauss-Seidel 迭代光滑子一文），也就是说，用 Gauss-Seidel 迭代若干次后，误差的[label]高频部分[/label]B很快衰减，但[label]低频部分[/label]却B很难消减。于是便有了[label]多重网格[/label]思想，即将迭代若干次后的[label]误差方程[/label]B限制在更粗的网格上来求解，从而能够大大减小低频误差。下面给出几何多重网格方法的核心思想。
+
+针对式（\ref{eq:5ptls}）得到的离散方程，其中$\boldsymbol{u}_h$为该线性方程组的B真解。设$\bar{\boldsymbol{u}}_h$为B初值，$\tilde{\boldsymbol{u}}_h$则为以该初值并用 Gauss-Seidel 迭代 $\nu_1$ 次后得到的B近似解，那么[label]误差[/label]$\boldsymbol{v}_h$和[label]残差[/label]$\boldsymbol{d}_h$可以定义为：
+
+\begin{equation}
+  \label{eq:errandres}
+  \begin{aligned}
+    \boldsymbol{v}_h &= \boldsymbol{u}_h - \tilde{\boldsymbol{u}}_h \\
+    \boldsymbol{d}_h &= \boldsymbol{A}_h\tilde{\boldsymbol{u}}_h - \boldsymbol{f}_h
+  \end{aligned}
+\end{equation}
+
+[alert type="info"]上述过程称之为[label]前光滑[/label]（pre-smooth）处理。[/alert]
+
+由此可以推得如下的[label]残差方程[/label]：
+
+\begin{equation}
+  \label{eq:reseqn}
+  \left.\begin{aligned}
+    \boldsymbol{d}_h &= \boldsymbol{A}_h(\boldsymbol{u}_h - \boldsymbol{v}_h) - \boldsymbol{f}_h \\
+    &= - \boldsymbol{A}_h\boldsymbol{v}_h
+  \end{aligned} \;\right\} \;\Rightarrow\;
+  \boldsymbol{A}_h\boldsymbol{v}_h = -\boldsymbol{d}_h
+\end{equation}
+
+\subsubsection*{几何多重网格方法的通用框架}
+
+B残差方程的重要性在于，近似解$\tilde{\boldsymbol{u}}_h$和残差$\boldsymbol{d}_h$是可以计算得到的，那么如果能通过式（\ref{eq:reseqn}）的残差方程计算得到误差的精确解$\boldsymbol{v}_h$的话，便能代回式（\ref{eq:errandres}）得到原线性方程组的真解$\boldsymbol{u}_h$。但是，式（\ref{eq:reseqn}）的残差方程能得到的也只是误差的B近似解$\tilde{\boldsymbol{v}}_h$，而多重网格方法的目标便是得到$\boldsymbol{v}_h$的一个更好的近似。它首先将式（\ref{eq:reseqn}）的[label]细网格[/label]上的残差方程[label]限制[/label]到[label]粗网格[/label]上，即：取粗网格的网格大小为$H=2h=2/N$，并记原椭圆问题在空间步长为$H$的情况下离散后得到的系数矩阵为$\boldsymbol{A}_H$，显然$\boldsymbol{A}_H$和$\boldsymbol{A}_h$具有相同的结构，只是前者的阶数为$(N/2-1)^2\times(N/2-1)^2$。然后，多重网格方法的一个核心步骤是通过一个细网格到粗网格上的[label]限制算子[/label]$\boldsymbol{R}$，将细网格上的残差$\boldsymbol{d}_h$限制到粗网格上的$\boldsymbol{d}_H$，即：
+
+\begin{equation}
+  \label{eq:resrestrict}
+  \boldsymbol{d}_H = \boldsymbol{R}\boldsymbol{d}_h
+\end{equation}
+
+于是，结合粗网格上的系数矩阵$\boldsymbol{A}_H$和残差$\boldsymbol{d}_H$，便有了粗网格上的残差方程，即：
+
+\begin{equation}
+  \label{eq:reseqncrs}
+  \boldsymbol{A}_H\boldsymbol{v}_H = -\boldsymbol{d}_H
+\end{equation}
+
+如果式（\ref{eq:reseqncrs}）的粗网格上的残差方程可以通过某种方法（如 Gauss 直接消去法）得到B精确解$\tilde{\boldsymbol{v}}_H$，那么就可以通过限制操作（restriction）的逆操作：[label]延拓[/label]操作（prolongation），将粗网格上的误差$\tilde{\boldsymbol{v}}_H$延拓为细网格上的误差$\tilde{\boldsymbol{v}}_h$（类似地，便有了[label]延拓算子[/label]$\boldsymbol{P}$），即：
+
+\begin{equation}
+  \label{eq:errprol}
+  \tilde{\boldsymbol{v}}_h \gets P\tilde{v}_H
+\end{equation}
+
+至此，由式（\ref{eq:errprol}）得到的$\tilde{\boldsymbol{v}}_h$便可以看作是式（\ref{eq:reseqn}）残差方程的近似解。最后，再回到式（\ref{eq:errandres}），将其累加到原近似解$\tilde{\boldsymbol{u}}_h$上，即：
+
+\begin{equation}
+  \label{eq:uhnew}
+  \tilde{\boldsymbol{u}}_h^{\mathrm{new}} = \tilde{\boldsymbol{u}}_h + \tilde{\boldsymbol{v}}_h
+\end{equation}
+
+相比原近似解$\tilde{\boldsymbol{u}}_h$，式（\ref{eq:uhnew}）得到的$\tilde{\boldsymbol{u}}_h^{\mathrm{new}}$是原式（\ref{eq:5ptls}）的离散线性方程组一个B更好的近似解。最后，再以$\tilde{\boldsymbol{u}}_h^{\mathrm{new}}$作为初值，对原方程式（\ref{eq:5ptls}）再次使用 Gauss-Seidel 迭代$\nu_2$次后，得到一个比$\tilde{\boldsymbol{u}}_h^{\mathrm{new}}$B更好的近似解$\bar{\boldsymbol{u}}_h^{\mathrm{new}}$。
+
+[alert type="info"]类似地，这个过程也称之为[label]后光滑[/label]（post-smooth）处理。[/alert]
+
+[alert type="success"]上述过程就是几何多重网格方法的一个通用框架。前光滑和后光滑处理过程中间的操作，统称为[label]粗网格修正[/label]，它涉及残差$\boldsymbol{d}_h$计算、粗网格化、误差$\tilde{\boldsymbol{v}}_H$求解、细网格化、和近似解$\tilde{\boldsymbol{u}}_h$修正等过程。由于此过程涉及了两个网格（一个细网格和一个粗网格），因此也称为[label]$2$-层网格[/label]。由此还可以引申出$V$-型和$W$-型的多重网格（层数$>2$）。[/alert]
+
+\subsubsection*{几何多重网格方法的算法描述}
+
+根据上述的分析，便可以给出一个几何多重网格方法通用框架的算法描述。这里以$2$-层网格为例，对于式（\ref{eq:5ptls}）给定的细网格上的方程，以及初值$\bar{\boldsymbol{u}}_h$和两个代表迭代次数的正整数$\nu_1$（前光滑次数）、$\nu_2$（后光滑次数），算法目标是得到一个比$\bar{\boldsymbol{u}}_h$更好的近似解$\bar{\boldsymbol{u}}_h^{\mathrm{new}}$。那么基于 Gauss-Seidel 迭代光滑子的几何多重网格方法算法$G(\bar{\boldsymbol{u}}_h,\nu_1,\nu_2,\bar{\boldsymbol{u}}_h^{\mathrm{new}})$可以描述如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Two-Grid Cycle}
+\begin{algorithm}[H]
+  \tcc{Pre-smooth}
+  $\tilde{\boldsymbol{u}}_h \gets \textbf{\texttt{smooth}}^{\nu_1}(\boldsymbol{A}_h,\bar{\boldsymbol{u}}_h,\boldsymbol{f}_h)$ \;
+  \tcc{Correction on Coarse Grid}
+  $\boldsymbol{d}_h \gets \boldsymbol{A}_h\tilde{\boldsymbol{u}}_h - \boldsymbol{f}_h$
+  \tcp*[r]{calc. residual}
+  $\boldsymbol{d}_H \gets \boldsymbol{R}_{h}^{H}\boldsymbol{d}_h$
+  \tcp*[r]{coarsen $\to \boldsymbol{A}_H$, $\boldsymbol{d}_H$}
+  $\boldsymbol{A}_H\boldsymbol{v}_H = -\boldsymbol{d}_H$
+  \tcp*{solve accurate $\tilde{\boldsymbol{v}}_H$}
+  $\tilde{\boldsymbol{v}}_h \gets \boldsymbol{P}_{H}^{h}\tilde{\boldsymbol{v}}_H$
+  \tcp*[r]{prolong $\to \boldsymbol{v}_h$}
+  $\tilde{\boldsymbol{u}}_h^{\mathrm{new}} \gets \tilde{\boldsymbol{u}}_h + \tilde{\boldsymbol{v}}_h$
+  \tcp*[r]{correct $\tilde{\boldsymbol{u}}_h$}
+  \tcc{Post-smooth}
+  $\bar{\boldsymbol{u}}_h^{\mathrm{new}} \gets \textbf{\texttt{smooth}}^{\nu_2}(\boldsymbol{A},\tilde{\boldsymbol{u}}_h^{\mathrm{new}},\boldsymbol{f}_h)$ \;
+\end{algorithm}
+%[/latex]
+
+上述算法即为$2$-层网格的算法描述。进一步分析该算法，在算法第$4$行，如果此时在粗网格上无法得到精确解$\tilde{\boldsymbol{v}}_H$，那么可以在算法第$5$行处B递归调用$2$-层网格算法。更具体来说，就是使用$2$-层网格方法来求解线性方程组$\boldsymbol{A}_H\boldsymbol{v}_H=-\boldsymbol{d}_H$，而这个过程中需要使用到更粗一层（$2H$）的网格，于是就得到了$3$-层网格，其中递归部分调用的算法为$G(0,\nu_1,\nu_2,\tilde{\boldsymbol{v}}_H)$。
+
+[alert type="info"]如果重复调用$2$-层网格算法，就得到了[lable]多重网格[/label]方法，其中最粗一层的网格对应的方程往往有B很低的阶数，可以用 [label]Gauss 消去法[/label]，甚至是[label]直接法[/label]求得。特别地，这种方法产生的网格也称为 [label]V-型多重网格[/label]。[/alert]
+
+\subsubsection*{V-型和 W-型多重网格}
+
+【Figure】
+
+上图给出了$2\thicksim5$重的 V-型多重网格示意图。另一种类型的多重网格称之为 [label]W-型多重网格[label]。和 V-型多重网格方法的区别在于，W-型多重网格在每一次递归过程中调用$2$次多重网格方法。下图给出了$2\thicksim4$重的 W-型多重网格示意图。
+
+【Figure】
+
+以上图中间的$3$重 W-型多重网格为例进行分析：第$1$层即为最细的网格（$h$），算法过程中需要调用$2$次$2$-层多重网格方法（对应节点$3\thicksim4$和节点$4\thicksim5$），而节点$6$和$7$对应最粗的$4h$网格。类似地，上图最后是$4$-层 W-型多重网格，也就是在最细一层网格的节点$1$和节点$2$之间，调用$2$次$3$-层 W-性多重网格方法（对应节点$3\thicksim4$和节点$4\thicksim5$），其中节点$6\thicksim11$对应$4h$网格，节点$12\thicksim15$则对应最粗的$8h$网格，且它们对应的都是B精确解。
+
+至此，本文简单概述了几何多重网格方法的通用框架，并由此得到了两类（V-型和 W-型）多重网格。但整个过程中，还有两个问题并没有解决：
+
+1. 初值$\bar{\boldsymbol{u}}_h$的选取；
+
+2. 限制算子$\boldsymbol{R}_{h}^{H}$和延拓算子$\boldsymbol{P}_{H}^{h}$的计算；
+
+事实上，第一个问题较好解决，通常可以取$\bar{\boldsymbol{u}}_h=0$；但还有一种方法是使用由粗网格相应的近似解经过延拓后得到的值，这种方法和多重网格方法结合以后，所得到的方法称之为[label]完全多重网格方法[/label]，此方法将另文详述。
+
+针对第二个问题，如上文所述，限制操作和延拓操作是多重网格方法的两个核心步骤。关于这两个算子，也将另文详述。
+
+%[/aside_content]
+
+\end{document}
