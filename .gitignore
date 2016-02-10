@@ -161,4 +161,4 @@ TSWLatexianTemp*
 # Mathematica Notebook and PNGs
 *.nb
 *.png
-
+*.graffle
