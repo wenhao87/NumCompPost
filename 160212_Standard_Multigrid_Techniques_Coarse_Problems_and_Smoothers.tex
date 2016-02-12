@@ -1,0 +1,219 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{标准多重网格技术之：粗网格问题和光滑子}
+
+此前，分别撰文介绍了多重网格（Multigrid）方法的通用框架（见几何多重网格方法概述一文），以及在内部网格节点上的两个核心操作：延拓操作（prolongation）和限制操作（restriction）（分别见多重网格内部网格上的延拓操作和延拓算子一文和多重网格内部网格上的限制操作和限制算子一文）。而从本文开始，将详细讨论标准多重网格技术。完整的多重网格方法将涉及以下几个内容：1）粗网格问题和光滑子、2）2-重网格模式、3）V-型和 W-型多重网格模式、4）完全多重网格方法。本文将就第一点，即粗网格问题和光滑子展开分析和讨论。
+
+用多重网格方法来求解偏微分方程的一个关键问题在于：插值一个在粗网格上得到的解，以此来获得细网格上更好的初值。而这个过程本身是可以递归调用的，直到到达某一层给定的网格。[label]嵌套迭代[/label]（nested iteration）就是对粗网格上的插值进行一系列平滑迭代。
+
+此外，通用多重网格方法的递归模式主要包含两个重要因素：1）基于延拓和限制操作的网格转换，从而形成具有层次结构的多重网格；2）光滑子（smoother），利用其光滑作用可以快速消减误差的[label]高频部分[/label]。常用的光滑子有：Richardson 光滑子、带权重的 Jacobi 光滑子（见Richardson 迭代和带权重的 Jacobi 迭代光滑子一文）、Gauss-Seidel 光滑子和红黑排序的 Gauss-Seidel 光滑子（见Gauss-Seidel 迭代光滑子一文）。
+
+\subsection*{粗网格问题}
+
+通常使用$h$来表示网格最高层（即最细网格）的网格大小，且得到的离散方程可以表示为如下形式：
+
+\begin{equation}
+  \label{eq:finegrid}
+  \boldsymbol{A}_h\boldsymbol{u}^h = \boldsymbol{f}^h
+\end{equation}
+
+多重网格方法要求粗网格上的离散方程也具有和式（\ref{eq:finegrid}）细网格方程类似的形式。那么问题就在于如何选取[label]粗网格算子[/label]$\boldsymbol{A}_H$。事实上，此前并没有详细地讨论过该问题，只是给出了一个最为简单的选取方法，即：如果下一层网格（粗网格）的网格大小为$H$，那么针对同一个问题模型，在$\Omega_H$上离散该问题后得到的系数矩阵$\boldsymbol{A}_H$即为粗网格算子。本文将给出另一种更为实用的粗网格算子选取方法，其核心原理是 [label]Galerkin 投影[/label]。
+
+针对式（\ref{eq:finegrid}），首先假定粗网格大小为$H=2h$；并令$\boldsymbol{u}^h_{\ast}$为B真解，$\boldsymbol{u}^h$是通过计算得到后的B近似解；再定义[lable]误差向量[/label]为$\boldsymbol{e}^h = \boldsymbol{u}^h_{\ast}-\boldsymbol{u}_h$，并且B假定该向量位于插值的[label]列空间[/label]$\mathrm{Ker}(\boldsymbol{P}_{2h}^{h})$或$\mathrm{Ran}(\boldsymbol{P}_{2h}^h)$内。换言之，对于粗网格上的任意向量$\boldsymbol{u}^{2h}\in\Omega_{2h}$，都有$\boldsymbol{e}^h=\boldsymbol{P}_{2h}^{h}\boldsymbol{u}^{2h}$。此外，还需要令$\boldsymbol{r}^h$为对应近似解$\boldsymbol{u}_h$时的[label]残差向量[/label]，那么结合式（\ref{eq:finegrid}）便能得到如下的[label]残差方程[/label]：
+
+\begin{equation}
+  \label{eq:reseqfine}
+  \left.\begin{aligned}
+    \boldsymbol{r}^h &= \boldsymbol{f}^h - \boldsymbol{A}_h\boldsymbol{u}^h \\
+    \boldsymbol{e}^h &= \boldsymbol{u}^h_{\ast} - \boldsymbol{u}^h \\
+  \end{aligned}\;\right\} \;\Rightarrow\;
+  \begin{aligned}
+    \boldsymbol{r}^h &= \boldsymbol{f}^h - \boldsymbol{A}_h(\boldsymbol{u}_\ast^h-\boldsymbol{e}^h) \\
+    &= \boldsymbol{A}_h\boldsymbol{e}^h \\
+  \end{aligned} \;\Rightarrow\;
+  \boldsymbol{r}^h = \boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}\boldsymbol{u}^{2h}
+\end{equation}
+
+式（\ref{eq:reseqfine}）最后的含义在于：$\boldsymbol{A}_h$作用于一个位于插值列空间上的向量。其原理是：对于粗网格上任意向量$\boldsymbol{u}^{H}\in\Omega_H$，延拓算子$\boldsymbol{P}_{H}^{h}$将$\boldsymbol{u}^{H}$插值到$\Omega_h$上，最后再将细网格算子$\boldsymbol{A}_h$作用于$\boldsymbol{P}_{H}^h\boldsymbol{u}^{H}$上。整个过程可以如下示意图。
+
+【Figure】
+
+\subsubsection*{Galerkin 投影}
+
+观察上图最后的结果可以发现，$\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}\boldsymbol{u}^{2h}$在奇数网格点上的值为$0$（这种效果类似于分段线性函数的二阶导数）。由此可以得出这样的结论，即：$\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}$的奇数行为$0$，偶数行则对应粗网格$\Omega_{2h}$上的点。因此，可以去掉$\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}$的奇数行，来得到残差方程的粗网格形式，那么最简单的实现方式就是利用“直接插入”的限制算子$\boldsymbol{R}_{h}^{2h}$。于是式（\ref{eq:reseqfine}）的残差方程便改写为了如下形式：
+
+\begin{equation}
+  \label{eq:reseqcoarse}
+  \underbrace{\boldsymbol{R}_{h}^{2h}\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}}_{\boldsymbol{A}_{2h}}\boldsymbol{u}^{2h} = \boldsymbol{R}_{h}^{2h}\boldsymbol{r}^h
+\end{equation}
+
+[alert type="info"]奇数点$j$为$0$的理由在于$v_{j}=(v_{j-1}+v_{j+1})/2$，则$(-1,2,-1)^T(v_{j-1},v_j,v_{j+1})=0$。[/alert]
+
+由此便得到了粗网格算子的另一种生成方法，即令：$\boldsymbol{A}_{2h}=\boldsymbol{R}_{h}^{2h}\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}$。更为重要的是，$\boldsymbol{A}_{2h}$是可以显式计算得到的。如果将粗网格算子$\boldsymbol{R}_{h}^{2h}\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}$作用于粗网格上的单位向量$\hat{\boldsymbol{e}}_{j}^{2h}$上，并且使用[label]完全加权[/label]的限制算子的话，则有（矩阵向量乘可以看做是矩阵各列的线性组合）：
+
+\begin{equation}
+  \label{eq:coarsegrid}
+  \begin{aligned}
+    & \boldsymbol{P}_{2h}^{h}\hat{\boldsymbol{e}}_j^{2h} = \dfrac{1}{2}\hat{\boldsymbol{e}}_{2j-1}^h + \hat{\boldsymbol{e}}_{2j}^h + \dfrac{1}{2}\hat{\boldsymbol{e}}_{2j+1}^h \;\Rightarrow\;
+    \left\{\; \begin{aligned}
+      \dfrac{1}{2}\boldsymbol{A}_{h}\hat{\boldsymbol{e}}_{2j-1}^h &= \dfrac{1}{2h^2}\left( -\hat{\boldsymbol{e}}_{2j-2}^{h} + 2\hat{\boldsymbol{e}}_{2j-1}^{h} - \hat{\boldsymbol{e}}_{2j}^{h} \right) \\
+      \boldsymbol{A}_h\hat{\boldsymbol{e}}_{2j}^{h} &= \dfrac{1}{h^2}\left(-\hat{\boldsymbol{e}}_{2j-1}^{h} + 2\hat{\boldsymbol{e}}_{2j}^{h} - \hat{\boldsymbol{e}}_{2j+1}^{h}\right) \\
+      \dfrac{1}{2}\boldsymbol{A}_{h}\hat{\boldsymbol{e}}_{2j+1}^{h} &= \dfrac{1}{2h^2}\left( -\hat{\boldsymbol{e}}_{2j}^{h} + 2 \hat{\boldsymbol{e}}_{2j+1} - \hat{\boldsymbol{e}}_{2j+2}^{h}\right)
+    \end{aligned}\right. \\
+    \Rightarrow\;&\boldsymbol{A}_h\boldsymbol{P}_{2h}^h\hat{\boldsymbol{e}}_{j}^{2h} = -\dfrac{1}{2h^2}\hat{\boldsymbol{e}}_{2j-2}^h + \dfrac{1}{h^2}\hat{\boldsymbol{e}}_{2j}^{h} - \dfrac{1}{2h^2}\hat{\boldsymbol{e}}_{2j+2}^{h} \;\Rightarrow\;
+    \left\{\; \begin{aligned}
+      \boldsymbol{R}_{h}^{2h}\hat{\boldsymbol{e}}_{2j-2}^h &= \dfrac{1}{4}\cdot2\hat{\boldsymbol{e}}_{j-1}^{2h} \\
+      \boldsymbol{R}_{h}^{2h}\hat{\boldsymbol{e}}_{2j}^h &= \dfrac{1}{4}\cdot2\hat{\boldsymbol{e}}_{j}^{2h} \\
+      \boldsymbol{R}_{h}^{2h}\hat{\boldsymbol{e}}_{2j+2}^h &= \dfrac{1}{4}\cdot2\hat{\boldsymbol{e}}_{j+1}^{2h} \\
+    \end{aligned}\right.\\
+    \Rightarrow\;& \boldsymbol{R}_{h}^{2h}\left(\boldsymbol{A}_h\boldsymbol{P}_{2h}^{h}\boldsymbol{e}_{j}^{2h}\right) = -\dfrac{1}{4h^2}\hat{\boldsymbol{e}}_{j-1}^{2h} + \dfrac{1}{2h^2}\hat{\boldsymbol{e}}_{j}^{2h} - \dfrac{1}{4h^2}\hat{\boldsymbol{e}}_{j+1}^{2h} = \boldsymbol{A}_{2h} \\
+    \Rightarrow\;& \boldsymbol{A}_{2h} = \dfrac{1}{(2h)^2} \; \mathrm{tridiag}
+    \begin{pmatrix} -1 & 2 & 1\end{pmatrix}
+  \end{aligned}
+\end{equation}
+
+[alert type="success"]事实上，如果使用最直接的第一种方法，即对原始问题在$\Omega_{2h}$上使用二阶差分进行离散，所得到的结果和式（\ref{eq:coarsegrid}）的结果是一致的。因此，可以说式（\ref{eq:reseqcoarse}）给出的粗网格算子$\boldsymbol{A}_{2h}$确实是细网格算子$\boldsymbol{A}_{h}$在粗网格$\Omega_{2h}$上对应的版本。但是，需要B特别注意的是，这条性质对于二维情况是B不成立的。[/alert]
+
+[alert type="error"]需要注意的一点是，这里的推导都基于一个前提条件，即：误差向量$\boldsymbol{e}^h$是位于插值的列空间内的。但事实B并非总是如此。如果误差向量位于该列空间内，那么精确求解$\Omega_{2h}$上的误差方程，并利用该精确解做二重网格的修正。[/alert]
+
+由前述的结论可以得出如下两个重要性质，它们也称为[label]变分性质[/label]（variational properties），即：
+
+\[
+  \begin{array}{lcll}
+    \boldsymbol{A}_{2h} & = & \boldsymbol{R}_{h}^{2h} \boldsymbol{A}_h \boldsymbol{P}_{2h}^{h} & (\textrm{Galerkin condition}) \\
+    \boldsymbol{R}_{h}^{2h} & = & c\;\left(\boldsymbol{P}_{2h}^{h}\right)^T & c \in \mathbb{R} \\
+  \end{array}
+\]
+
+[alert type="info"]第一条性质（Galerkin 条件）定义了粗网格算子；第二条性质给出了延拓算子和B完全加权的限制算子之间的关系（具体关系也可参见多重网格内部网格上的限制操作和限制算子一文）。[/alert]
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsection*{光滑子}
+
+对于给定的细网格上的离散方程以及初始值$\boldsymbol{u}_{0}^{h}$，经过$\nu$步光滑迭代后，得到$\boldsymbol{u}_{\nu}^h$，则整个光滑操作可以表示为：
+
+\begin{equation}
+  \label{eq:smooth}
+  \boldsymbol{u}_{\nu}^h = \texttt{smooth}^{\nu}(\boldsymbol{A}_h,\boldsymbol{u}_0^h,\boldsymbol{f}^h)
+\end{equation}
+
+式（\ref{eq:smooth}）的光滑迭代具有如下形式：
+
+\begin{equation}
+  \label{eq:smoothiter}
+  \boldsymbol{u}_{j+1}^h = \boldsymbol{G}_h \boldsymbol{u}_{j}^h + \boldsymbol{g}^h
+\end{equation}
+
+这里的$\boldsymbol{G}_h$是每一个迭代步对应的迭代矩阵。另一方面，式（\ref{eq:smoothiter}）也可以改写为如下的“预处理”的形式，即：
+
+\begin{equation}
+  \label{eq:smootheriterpre}
+  \boldsymbol{u}_{j+1}^h = \boldsymbol{u}_{j}^h + \boldsymbol{B}_h(\boldsymbol{f}^h - \boldsymbol{A}_h \boldsymbol{u}_j^h)
+  \quad\left\{\; \begin{aligned}
+    \boldsymbol{G}_h &\equiv \boldsymbol{I} - \boldsymbol{B}_h\boldsymbol{A}_h \\
+    \boldsymbol{B}_h &\equiv (\boldsymbol{I} - \boldsymbol{G}_h)\boldsymbol{A}_h^{-1} \\
+    \boldsymbol{g}_h &\equiv \boldsymbol{B}_h\boldsymbol{f}^h
+  \end{aligned}\right.
+\end{equation}
+
+进一步，可以推得$\nu$步光滑迭代后B误差向量$\boldsymbol{e}_{\nu}^h$和B残差向量$\boldsymbol{r}_{\nu}^h$的表达式，即：
+
+\begin{equation}
+  \label{eq:errres}
+  \begin{aligned}
+    \left.\begin{aligned}
+      \boldsymbol{u}_{\nu}^h &= \boldsymbol{G}_h \boldsymbol{u}_{\nu-1}^h + \boldsymbol{g}_h \\
+      \boldsymbol{u}_{\ast}^h &= \boldsymbol{G}_h \boldsymbol{u}_{\ast}^h + \boldsymbol{g}_h \\
+    \end{aligned} \;\right\} &\;\Rightarrow\;
+    \begin{aligned}
+      \boldsymbol{e}_{\nu}^h &= \boldsymbol{u}_{\ast}^h - \boldsymbol{u}_{\nu}^h = \boldsymbol{G}_{h} (\boldsymbol{u}_{\ast}^h - \boldsymbol{u}_{\nu-1}^h) \\
+      &= (\boldsymbol{G}_h)^2(\boldsymbol{u}_{\ast}^h-\boldsymbol{u}_{\nu-2}^h) = \cdots \\
+      &= (\boldsymbol{G}_{h})^{\nu}(\boldsymbol{u}_{\ast}^h - \boldsymbol{u}_{0}^{h}) = (\boldsymbol{G}_{h})^{\nu}\boldsymbol{e}_0^h \\
+      &=(\boldsymbol{I} - \boldsymbol{B}_h\boldsymbol{A}_h)^{\nu} \boldsymbol{e}_0^h
+    \end{aligned} \\
+    \left.\begin{aligned}
+      \boldsymbol{r}_{\nu}^h &= \boldsymbol{A}_h \boldsymbol{e}_{\nu}^h \;\Rightarrow\; \boldsymbol{e}_{0}^h = \boldsymbol{A}^{-1}_{h}\boldsymbol{r}_{0}^h \\
+      \boldsymbol{e}_{\nu}^h &= (I-\boldsymbol{B}_h\boldsymbol{A}_h)^{\nu}\boldsymbol{e}_0^h
+    \end{aligned} \;\right\} &\;\Rightarrow\;
+    \boldsymbol{r}_{\nu}^h = \boldsymbol{A}_h (\boldsymbol{I}-\boldsymbol{B}_h\boldsymbol{A}_h)^{\nu} \boldsymbol{A}^{-1}_h\boldsymbol{r}_0^h
+  \end{aligned}
+\end{equation}
+
+[alert type="info"]如果$\boldsymbol{f}_h=0$，那么$\boldsymbol{g}_h$也为$0$，此时式（\ref{eq:smoothiter}）的每一个迭代步只需要一次矩阵向量乘即可。[/alert]
+
+\subsubsection*{几种常用的迭代光滑子}
+
+考察几种常见的迭代光滑子，包括 Jacobi 迭代、Gauss-Seidel 迭代（见Gauss-Seidel 迭代光滑子
+一文）、和 Richardson 迭代（见Richardson 迭代和带权重的 Jacobi 迭代光滑子一文）。这里假定$\boldsymbol{f}\equiv0$，则有：
+
+\[
+  \boldsymbol{B}_{h} \equiv (\boldsymbol{I}-\boldsymbol{G}_h)\boldsymbol{A}_{h}^{-1} \;\Rightarrow\;
+  \left\{\; \begin{array}{llcll}
+    \boldsymbol{G}_{\mathrm{J}} &= \boldsymbol{D}^{-1}(\boldsymbol{L}+\boldsymbol{U}) &\Rightarrow&
+    \boldsymbol{B}_{h}^{\mathrm{J}} &= \Big(\boldsymbol{I}-\boldsymbol{D}^{-1}(\boldsymbol{L}+\boldsymbol{U})\Big)\boldsymbol{A}_{h}^{-1} \\
+    & & & &= \boldsymbol{D}^{-1}\Big(\boldsymbol{D}-(\boldsymbol{L}+\boldsymbol{U})\Big) \boldsymbol{A}_{h}^{-1} = \boldsymbol{D}^{-1} \\
+    \boldsymbol{G}_{\mathrm{GS}} &= (\boldsymbol{D}-\boldsymbol{L})^{-1}\boldsymbol{U} &\Rightarrow&
+    \boldsymbol{B}_{h}^{\mathrm{GS}} &=
+    \Big(\boldsymbol{I}-(\boldsymbol{D}-\boldsymbol{L})^{-1}\boldsymbol{U}\Big)\boldsymbol{A}_{h}^{-1} \\
+    & & & &=(\boldsymbol{D}-\boldsymbol{L})^{-1} \\
+    \boldsymbol{G}_{\mathrm{R}} &= (\boldsymbol{I}-\omega\boldsymbol{A}_{h})
+    &\Rightarrow& \boldsymbol{B}_{h}^{\mathrm{R}} &=
+    \Big(\boldsymbol{I}-(\boldsymbol{I}-\omega\boldsymbol{A}_{h})\Big)\boldsymbol{A}_h^{-1} \\
+    & & & &=\omega\boldsymbol{I}
+  \end{array}\right.
+\]
+
+\subsection*{嵌套迭代}
+
+嵌套迭代（nested iteration）是一个通过在粗网格上进行递归来获得一个较好初始值的方法。假定一共有$p+1$层网格，其中最粗一层（第$p$层）网格大小为$2^{p}h\equiv h_0$，最细一层（第$0$层）则为$h$，且递归由最粗层网格开始。另外，在第$l$层网格$0\leq l \leq p$需进行$\nu_l$步光滑迭代。
+
+那么，对于给定的最粗网格大小$h_0$，总网格层数$p+1$，第$l$层的光滑步数为$\nu^{l}$，以及初始值$\boldsymbol{u}_{0}^h$，嵌套迭代算法实现如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{Nested Iteration}
+\begin{algorithm}[H]
+    $h \gets h_{0}$ \;
+    $\boldsymbol{u}^h \gets \texttt{smooth}^{\nu_{p}}(\boldsymbol{A}_h,\boldsymbol{u}_0^h,\boldsymbol{f}^h)$ \;
+    \For{$l \gets p-1$ \KwTo $0$}{
+      $\boldsymbol{u}^{h/2} \gets \boldsymbol{P}_{h}^{h/2}\boldsymbol{u}^h$ \;
+      $h \gets h/2$ \;
+      $\boldsymbol{u}_h \gets \texttt{smooth}^{\nu_l}(\boldsymbol{A}_h, \boldsymbol{u}^h, \boldsymbol{f}^h)$
+    }
+\end{algorithm}
+%[/latex]
+
+[alert type="error"]B注意：事实上嵌套迭代B并不经常以此种形式出现，但是在[label]完全多重网格[/label]（Full Multigrid，FMG）方法中却会频繁使用该种方法。关于完全多重网格，将另文详述。[/alert]
+
+
+%[/aside_content]
+
+\end{document}
