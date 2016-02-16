@@ -1,0 +1,189 @@
+\documentclass[12pt, UTF8, nofonts]{ctexart}
+
+\setCJKmainfont[BoldFont=STHeiti,ItalicFont=STKaiti]{STKaiti}
+\setCJKsansfont[BoldFont=STHeiti]{STXihei}
+\setCJKmonofont{STFangsong}
+
+\usepackage[letterpaper,left=.5in,right=.5in,top=1in,bottom=.5in]{geometry}
+\usepackage{afterpage, color, multirow}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+
+\definecolor{bgcolor}{RGB}{13, 12, 12}
+\definecolor{ttcolor}{RGB}{0, 255, 0}
+\pagecolor{bgcolor}\afterpage{\nopagecolor}
+\makeatletter
+\newcommand{\globalcolor}[1]{\color{#1}\global\let\default@color\current@color}
+\makeatother
+\AtBeginDocument{\globalcolor{ttcolor}}
+
+\begin{document}
+
+%[aside_content]
+
+\section*{标准多重网格技术之：V-型和 W-型多重网格}
+
+完整的多重网格（Multigrid）方法涉及以下几个内容：1）粗网格问题和光滑子、2）二重网格模式、3）V-型和 W-型多重网格模式、4）完全多重网格方法。标准多重网格技术之：粗网格问题和光滑子一文就第一点展开了详细的讨论，主要介绍了如何选取粗网格算子，以及常见的一些迭代光滑子（smoother），并且还介绍了一种完全多重网格方法中较为常用的嵌套迭代方法。标准多重网格技术之：二重网格一文则介绍了最为基本的[label]二重网格[/label]（two-grid cycle）方法，它也是其他类型的多重网格模式的基础。本文将就第三点展开讨论，即：从二重网格出发，给出真正意义上的几何多重网格方法，并介绍其中最为典型的两类多重网格：V-型和 W-型多重网格模式。
+
+\subsection*{V-型多重网格方法}
+
+\subsubsection*{V-型多重网格算法实现}
+
+事实上，很显然，如果B递归地调用二重网格方法，那么总能达到某一个网格粒度粗到可以进行精确求解（通常可以使用直接法求解）的网格。基于这种思想所实现的算法，称之为[label]V-型多重网格[/label]方法（V-cycles）。
+
+对于给定的细网格上线性方程组$\boldsymbol{A}_h\boldsymbol{u}^h=\boldsymbol{f}^h$，其[label]残差方程[/label]可以表示为$\boldsymbol{A}_h\boldsymbol{e}^h=\boldsymbol{r}^h$，其中$\boldsymbol{e}^h$是[label]误差向量[/label]；相邻两层网格之间较细网格大小为$h$，较粗网格大小为$H=2h$，且最粗一层网格的大小为$h_0$；前光滑（pre-smooth）和后光滑（post-smooth）处理的迭代次数分别为$\nu_1$和$\nu_2$。那么对于给定的初始值$\boldsymbol{u}_0^h$，V-型多重网格算法$\boldsymbol{u}^h=\textbf{\texttt{V-cycle}}(\boldsymbol{A}_h,\boldsymbol{u}_0^h,\boldsymbol{f}^h)$描述如下：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{$\boldsymbol{u}^h=\textbf{\texttt{V-cycle}}(\boldsymbol{A}_h,\boldsymbol{u}_0^h,\boldsymbol{f}^h)$}
+\begin{algorithm}[H]
+  $\boldsymbol{u}^h \gets \textbf{\texttt{smooth}}^{\nu_1}(\boldsymbol{A}_h,\boldsymbol{u}_{0}^h,\boldsymbol{f}^h)$
+  \tcp*[r]{Pre-smooth}
+  $\boldsymbol{r}^h \gets \boldsymbol{f}^h - \boldsymbol{A}_h \boldsymbol{u}^h$
+  \tcp*[r]{Get Residual}
+  $\boldsymbol{r}^{H} \gets \boldsymbol{R}_{h}^{H}\boldsymbol{r}^h$
+  \tcp*[r]{Coarsen}
+  \eIf(\tcp*[f]{coarsest gird}){$H==h_0$}{
+    $\boldsymbol{A}_{H} \boldsymbol{e}^{H} = \boldsymbol{r}^{H}$
+    \tcp*[r]{Solve}
+  }{
+    $\boldsymbol{e}^H \gets \textbf{\texttt{V-cycle}}(\boldsymbol{A}_H,0,\boldsymbol{r}^H)$
+    \tcp*[r]{Recursion}
+  }
+  $\boldsymbol{e}^h \gets \boldsymbol{P}_{H}^{h} \boldsymbol{e}^{H}$
+  \tcp*[r]{Interpolation}
+  $\boldsymbol{u}^h \gets \boldsymbol{u}^h + \boldsymbol{e}^h$
+  \tcp*[r]{Correct}
+  $\boldsymbol{u}^h \gets \textbf{\texttt{smooth}}^{\nu_2}(\boldsymbol{A}_h, \boldsymbol{u}^h, \boldsymbol{f}^h)$
+  \tcp*[r]{Post-smooth}
+\end{algorithm}
+%[/latex]
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsubsection*{V-型多重网格算法分析}
+
+对比二重网格算法（见标准多重网格技术之：二重网格一文）可以发现，V-型多重网格方法和二重网格方法的唯一区别在于B求解的那一步。如前所述，在 V-型多重网格方法中，直到到达最粗一层网格时才进行求解（此时往往可以使用直接法求解），这就对应了上述算法的第$4,5$行。
+
+另一方面，在到达最粗一层前的递归过程中，由于递归时更优近似解的求解已经从原线性方程转换为了残差方程（算法第$5$行），换言之，递归的目的是找寻残差方程$\boldsymbol{A}_H\boldsymbol{e}^H=\boldsymbol{r}^H$的更优近似解$\boldsymbol{e}^H$，因此递归调用的参数也就变成了$\boldsymbol{A}^H$和$\boldsymbol{r}^H$；另外由于事先无法知道残差方程的信息，因此通常将$\boldsymbol{e}^H$的初值通常设为$0$。所以才有了第$7$行的递归调用：$\boldsymbol{e}^H \gets \textbf{\texttt{V-cycle}}(\boldsymbol{A}_H,0,\boldsymbol{r}^H)$。
+
+最后考察上述算法的计算量。如果记$\boldsymbol{A}_h$的非零元个数为$nnz_h$，且假定有$nnz_h\leq\alpha n_h$，其中$\alpha$与网格大小$h$无关，$n_h$为网格大小为$h$时对应的节点个数。则对于B每一个迭代步来说，每一步前光滑和后光滑处理的计算量分别为$nnz_h$，限制操作（restriction）和延拓操作（prolongation）的计算量分别为$\beta n_h$（同样，$\beta$无关于$h$），则对于网格大小为$h$的网格层来说，其计算量可以表示为：
+
+\begin{equation}
+  \label{eq:recursion}
+  C(n_h) = \underbrace{\alpha(\nu_1+\nu_2)n_h}_{smooth} + \overbrace{2\beta n_h}^{R\&P} + \underbrace{C(n_{2h})}_{next} \quad\Rightarrow\quad
+  \begin{aligned}
+    C(n) &= \eta n + C(n/2) \\
+    &= \eta n(1 + \dfrac{1}{2} + \dfrac{1}{4} + \cdots) \\
+    &\leq 2\eta n \\
+  \end{aligned}
+\end{equation}
+
+上式右端给出了其递归形式，其中$\eta=\alpha(\nu_1+\nu_2)+2\beta$。在一维情况下有$n_{2h}=n_h/2$，对式（\ref{eq:recursion}）进行递归求解得到$C(n)\leq2\eta n$；二维情况下，$n_h=4n_{2h}$，此时$C(n_h)\leq\frac{7}{3}\eta n$。
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsection*{通用多重网格方法}
+
+\subsubsection*{通用多重网格算法实现}
+
+如果对上述的 V-型多重网格方法进行一般化，便能得到如下的[label]通用多重网格[/label]方法（general multigrid cycle），算法的核心依然是递归思想。下面给出了算法$\boldsymbol{u}^h = \textbf{\texttt{MG}}(\boldsymbol{A}_h,\boldsymbol{u}_0^h,\boldsymbol{f}^h,\nu_1,\nu_2,\gamma)$的具体实现：
+
+%[latex mode=1]
+%[+preamble]
+%\usepackage[titlenotnumbered,lined,linesnumbered]{algorithm2e}
+%[/preamble]
+\TitleOfAlgo{$\boldsymbol{u}^h=\textbf{\texttt{MG}}(\boldsymbol{A}_h,\boldsymbol{u}_0^h,\boldsymbol{f}^h,\nu_1,\nu_2,\gamma)$}
+\begin{algorithm}[H]
+  $\boldsymbol{u}^h \gets \textbf{\texttt{smooth}}^{\nu_1}(\boldsymbol{A}_h,\boldsymbol{u}_{0}^h,\boldsymbol{f}^h)$
+  \tcp*[r]{Pre-smooth}
+  $\boldsymbol{r}^h \gets \boldsymbol{f}^h - \boldsymbol{A}_h \boldsymbol{u}^h$
+  \tcp*[r]{Get Residual}
+  $\boldsymbol{r}^{H} \gets \boldsymbol{R}_{h}^{H}\boldsymbol{r}^h$
+  \tcp*[r]{Coarsen}
+  \eIf(\tcp*[f]{coarsest gird}){$H==h_0$}{
+    $\boldsymbol{A}_{H} \boldsymbol{e}^{H} = \boldsymbol{r}^{H}$
+    \tcp*[r]{Solve}
+  }{
+    $\boldsymbol{e}^H \gets \textbf{\texttt{MG}}^{\gamma}(\boldsymbol{A}_H,0,\boldsymbol{r}^H,\nu_1,\nu_2,\gamma)$
+    \tcp*[r]{Recursion}
+  }
+  $\boldsymbol{e}^h \gets \boldsymbol{P}_{H}^{h} \boldsymbol{e}^{H}$
+  \tcp*[r]{Interpolation}
+  $\boldsymbol{u}^h \gets \boldsymbol{u}^h + \boldsymbol{e}^h$
+  \tcp*[r]{Correct}
+  $\boldsymbol{u}^h \gets \textbf{\texttt{smooth}}^{\nu_2}(\boldsymbol{A}_h, \boldsymbol{u}^h, \boldsymbol{f}^h)$
+  \tcp*[r]{Post-smooth}
+\end{algorithm}
+%[/latex]
+
+\subsubsection*{通用多重网格算法分析}
+
+显然，通用多重网格方法和 V-型多重网格方法的B唯一区别在于不同的递归调用形式。更具体来说，通用多重网格方法使用了一个额外参数$\gamma$，用来标记算法第$7$行处重复调用算法$\textbf{\texttt{MG}}$的次数。
+
+【Figure】
+
+上图给出了不同类型的多重网格方法的示意图。由此可以看出，当$\gamma=1$时，它就是 V-型多重网格方法；而当$\gamma=2$时，得到的便是 [label]W-型多重网格[/label]方法（W-cycle）。一般很少会用到$\gamma=3$的情况。
+
+有了此前 V-型多重网格方法计算量分析的基础，便很容易将其改写为通用多重网格方法的计算量，即：下一层网格的迭代次数由$1$次变为了$\gamma$次。因此有：
+
+\[
+  C(n) = \left\{\;
+  \begin{aligned}
+    \eta n + \gamma\;C(n/2) & \quad (\textrm{1-D case}) \\
+    \eta n + \gamma\;C(n/4) & \quad (\textrm{2-D case}) \\
+  \end{aligned}\right.
+\]
+
+[alert type="error"]B注意：在$\gamma<2$（一维情况下）和$\gamma<4$（二维情况下）时，仍能保持B线性的迭代计算量；反之，计算量为$\mathcal{O}(n\log_2n)$。[/alert]
+
+最后需要考察的是通用多重网格算法中每一个迭代步对应的迭代矩阵（[label]迭代算子[/label]）。上文给出了把二重网格方法看作是一步迭代时对应的迭代算子$\boldsymbol{M}_h$（见标准多重网格技术之：二重网格一文），即：
+
+\begin{equation}
+  \label{eq:itermat2grid}
+  \boldsymbol{M}_H^h = \boldsymbol{G}_{h}^{\nu_2}\Big( \boldsymbol{I} - \boldsymbol{P}_H^{h}\boldsymbol{A}_{H}^{-1}\boldsymbol{R}_{h}^{H}\boldsymbol{A}_h \Big)\boldsymbol{G}_{h}^{\nu_1}
+\end{equation}
+
+根据二重网格方法迭代算子的计算过程可知，对于通用多重网格方法来说，需要调整的是式（\ref{eq:itermat2grid}）中的$\boldsymbol{A}^{-1}_H$，其对应的迭代矩阵$\boldsymbol{M}_h$最终可以表示为如下形式（推导过程略）：
+
+\[
+  \boldsymbol{M}_h = \boldsymbol{M}_H^h + \boldsymbol{G}_{h}^{\nu_2} \boldsymbol{P}_H^{h}\boldsymbol{M}_H\boldsymbol{A}_{H}^{-1}\boldsymbol{R}_{h}^{H}\boldsymbol{A}_h\boldsymbol{G}_{h}^{\nu_1}
+\]
+
+%[/aside_content]
+
+%[aside_content]
+
+\subsection*{二维离散 Poisson 方程实例}
+
+这里以求解二维空间上 [lable]Dirchlet 边界条件[/label]的 Poisson 问题来说明 V-型多重网格方法的收敛性表现。详细的多重网格方法的收敛性分析将另文详述。设该二维 Poisson 问题模型为：
+
+\[
+  -\Delta \boldsymbol{u} = 13 \sin(2\pi x) \times \sin(3\pi y)
+\]
+
+上式的精确解为$u(x,y)=\sin(2\pi x)\times \sin(3\pi y)$。在正方形网格上对该 Poisson 方程进行离散，$x$和$y$方向各有$n_x=n_y=33$个点，其中包括边界点。因此，得到的离散方程的系数矩阵具有维数$N=31^2=961$。分别使用如下三种迭代光滑子：1）权值$\omega=2/3$的带权重的 Jacobi 迭代光滑子（见 Richardson 迭代和带权重的 Jacobi 迭代光滑子一文）；2）Gauss-Seidel 迭代光滑子（见 Gauss-Seidel 迭代光滑子一文）；3）红黑排序的 Gauss-Seidel 迭代光滑子，来实现 V-型多重网格方法，并分别用$\nu_1$和$\nu_2$来表示前后光滑处理操作的迭代步数。下表中的[label]收敛因子[/label]$\rho$的估算表达式为（其中$k$为总的光滑迭代步数）：
+
+\[
+  \rho = \exp\left(\dfrac{1}{k} \log \dfrac{\|\boldsymbol{r}_k\|_2} {\|\boldsymbol{r}_0\|_2}\right)
+\]
+
+【Table】
+
+迭代结束的收敛条件是残差的[label]$2$-范数[/label]小于阈值$tol=10^{-8}$。从上表可以看出，使用红黑排序的 Gauss-Seidel 迭代光滑子（上表中的 RB-GS）的收敛效果B最好。除此之外，有以下几点需要特别注意：
+
+- 即使对于总的光滑迭代次数只有$\nu_1+\nu_2=2$的情况，RB-GS 光滑子都能获得小于$0.1$的收敛因子；
+
+- 对于 $\nu_1+\nu_2$固定的情况下的 RB-GS 光滑子，$\nu_1$和$\nu_2$越接近平滑，收敛效果越好。体现在上表中为：$\rho_{\textrm{RB-GS}_{(1,1)}}<\rho_{\textrm{RB-GS}_{(0,2)}}$以及$\rho_{\textrm{RB-GS}_{(1,2)}}<\rho_{\textrm{RB-GS}_{(0,3)}}$。
+
+%[/aside_content]
+
+\end{document}
